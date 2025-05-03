@@ -1,0 +1,76 @@
+/*
+========================
+星空 (Xing Kong)
+========================
+主题灵感来源于浩瀚神秘的星空，现在加入了微妙的渐变以增强深度感和氛围。
+它使用深邃的蓝色和黑色作为宇宙背景，点缀着闪耀的金色和白色代表遥远的恒星和星系。
+这些颜色唤起一种奇妙和无限空间的感觉。
+*/
+
+/* 根变量 */
+:root {
+    --color-white-soft: #FAFAD2;  /* 柔和的星光黄色 */
+    --color-black-soft: #0A141E;  /* 深邃的太空黑蓝色 */
+
+    /* 主色 (强调色) 及变体 - 星星/强调元素 */
+    --color-primary: #FFD700;     /* 金色 (明亮的星星) */
+    --color-primary-soft: rgba(255, 215, 0, 0.6);
+    --color-primary-mute: rgba(255, 215, 0, 0.2);
+}
+
+/* 暗色模式 - 带有渐变的深邃夜空 */
+body[theme-mode="dark"] {
+    /* 主体背景渐变 */
+    background: linear-gradient(to bottom, #0A141E 0%, #1A2B3C 100%); /* 从深邃太空到暗宇宙蓝的渐变 */
+    /* 保留变量供可能将其用作备用或基础的元素使用 */
+    --color-background: #0A141E;       /* 最深邃的太空 */
+
+    --color-background-mute: #1A2B3C;  /* 暗宇宙蓝 (用于上层元素) */
+    --color-background-soft: #2C3E50;  /* 中等暗蓝灰色 (用于上层元素) */
+
+    --navbar-background-mac: rgba(10, 20, 30, 0.85); /* 半透明深蓝色 */
+    --navbar-background: #0A141E;      /* 纯色深邃太空 */
+    --chat-background: #0A141E;        /* 聊天区域背景 (可以是纯色或有自己的渐变) */
+    --chat-background-user: #1A2B3C;   /* 用户气泡背景 */
+    --chat-background-assistant: #2C3E50; /* 助手气泡背景 */
+
+    --chat-text-user: #FAFAD2;         /* 用户文本 (柔和的星光黄色) */
+    --color-text: #E0E0E0;             /* 通用文本 (浅灰色，用于提高可见性) */
+
+    --color-hover: #2C3E50;            /* 悬停状态背景 */
+    --color-active: #34495E;           /* 激活状态背景 */
+
+    --color-border: rgba(224, 224, 224, 0.15); /* 微妙的星光边框 */
+    --color-border-soft: rgba(224, 224, 224, 0.08); /* 更柔和的星光边框 */
+}
+
+/* 亮色模式 - 带有渐变的黎明/黄昏天空 */
+body[theme-mode="light"] {
+     /* 主体背景渐变 */
+    background: linear-gradient(to bottom, #E0F2F7 0%, #B3E5FC 100%); /* 从极浅天蓝色到浅蓝色的渐变 */
+    /* 保留变量供可能将其用作备用或基础的元素使用 */
+    --color-background: #E0F2F7;       /* 极浅天蓝色 */
+
+    --color-background-mute: #B3E5FC;  /* 浅蓝色 (用于上层元素) */
+    --color-background-soft: #81D4FA;  /* 中等浅蓝色 (用于上层元素) */
+
+    --navbar-background: #E0F2F7;      /* 导航栏背景 */
+    --chat-background: #E0F2F7;        /* 聊天区域背景 */
+    --chat-background-user: #B3E5FC;   /* 用户气泡背景 */
+    --chat-background-assistant: #81D4FA; /* 助手气泡背景 */
+
+    --color-text: #0A141E;             /* 深色文本 (深邃的太空黑蓝色) */
+
+    --color-hover: #B3E5FC;            /* 悬停状态背景 */
+    --color-active: #81D4FA;           /* 激活状态背景 */
+
+    --color-border: rgba(10, 20, 30, 0.12); /* 微妙的深色边框 */
+    --color-border-soft: rgba(10, 20, 30, 0.06); /* 更柔和的深色边框 */
+
+    --color-white: #E0F2F7;            /* 白色等效 */
+}
+
+/* Bug 修复 */
+.bubble .message-user .message-action-button:hover {
+  background-color: var(--color-background-mute);
+}
