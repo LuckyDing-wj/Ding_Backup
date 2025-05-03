@@ -1,0 +1,370 @@
+body[theme-mode="dark"] {
+  --color-background: #2B2D30;
+  --color-background-soft: #43454A;
+  --color-background-mute: #393B40;
+  --navbar-background: #2B2D30;
+  --chat-background: #2B2D30;
+  --chat-background-user: #393B40;
+  --chat-background-assistant: #393B40;
+  --chat-customize-box-shadow: rgba(0, 0, 0, 0.4) 6px 6px 12px, rgba(60, 60, 60, 0.4) -6px -6px 12px;
+  --chat-customize-box-shadow2: rgba(0, 0, 0, 0.4) 6px 6px 12px, rgba(60, 60, 60, 0.4) -6px -6px 12px;
+  --chat-customize-box-shadow3:
+    inset 0.25rem 0.25rem 0.8rem #212326,
+    inset -0.25rem -0.25rem 0.8rem #35373a,
+    0 0.3rem 0.6rem rgba(0, 0, 0, 0.3) !important;
+  --chat-customize-box-shadow4:
+    inset 2px 2px 5px rgba(32, 33, 36, 0.8),
+    inset -2px -2px 5px rgba(77, 79, 85, 0.5),
+    0 0 8px rgba(90, 100, 120, 0.15);
+  --chat-text-user: #FFFFFF;
+  --chat-customize-collapse-background: #2B2D30;
+  --chat-customize-codeHeader: #B0B3B8;
+  --color-black: #393B40;
+  --antd-arrow-background-color: #2B2D30;
+  --list-item-border-radius: 8px;
+}
+
+body[theme-mode="light"] {
+  --color-background: #FFFAE8;
+  --color-background-soft: #E8DFC4;
+  --color-background-mute: #E8DFC4;
+  --navbar-background: #FFFAE8;
+  --chat-background: #FFFAE8;
+  --chat-background-user: #FFFAE8;
+  --chat-background-assistant: #FFFAE8;
+  --chat-customize-box-shadow: 0.15rem 0.15rem 0.5rem #888;
+  --chat-customize-box-shadow2:
+    -1px -1px 5px 0px #fff,
+    7px 7px 20px 0px #0003,
+    4px 4px 5px 0px #0002;
+  --chat-customize-box-shadow3:
+    inset 0.2rem 0.2rem 0.6rem #d0c7ae,
+    inset -0.2rem -0.2rem 0.6rem #fff7da,
+    0 0 5px rgba(208, 199, 174, 0.4);
+  --chat-customize-box-shadow4:
+    inset 0.2rem 0.2rem 0.6rem #d0c7ae,
+    inset -0.2rem -0.2rem 0.6rem #fff7da,
+    0 0 5px rgba(208, 199, 174, 0.4);
+  --chat-text-user: #000;
+  --chat-customize-collapse-background: #E8DFC4;
+  --chat-customize-codeHeader: #9F9371;
+  --color-white: #FFFAE8;
+  --antd-arrow-background-color: #FFFAE8;
+  --list-item-border-radius: 8px;
+}
+
+.inputbar-container {
+  border-radius: 12px;
+  border: transparent;
+  background-color: var(--chat-background-assistant) !important;
+  box-shadow: var(--chat-customize-box-shadow);
+}
+
+
+/* 纵向tab按钮 */
+.ant-dropdown-trigger {
+  background-color: transparent !important;
+  border: transparent !important;
+  box-shadow: none;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+
+/* hover状态字体样式 */
+.ant-dropdown-trigger:hover:not(.active) {
+  color: #2EB372 !important;
+  font-weight: 500;
+  transition: color 0.3s ease, font-weight 0.3s ease;
+}
+
+/* active状态字体样式 */
+.ant-dropdown-trigger.active {
+  color: #00B96B !important;
+  font-weight: 600;
+  text-shadow: 0 0 0.5px rgba(0, 185, 107, 0.4);
+}
+
+
+
+
+/* active状态样式 */
+.ant-dropdown-trigger.active:before,
+.ant-dropdown-trigger.active:after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--color-background-soft);
+  box-shadow: var(--chat-customize-box-shadow2);
+  transition: 400ms ease all;
+  pointer-events: none;
+  /* 防止伪元素干扰鼠标事件 */
+}
+
+.ant-dropdown-trigger.active:after {
+  right: inherit;
+  top: inherit;
+  left: 0;
+  bottom: 0;
+}
+
+/* 非active状态的初始样式 */
+.ant-dropdown-trigger:not(.active):before,
+.ant-dropdown-trigger:not(.active):after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 2px;
+  width: 0;
+  background: var(--color-background-soft);
+  box-shadow: var(--chat-customize-box-shadow2);
+  transition: 400ms ease all;
+  pointer-events: none;
+  /* 防止伪元素干扰鼠标事件 */
+}
+
+.ant-dropdown-trigger:not(.active):after {
+  right: inherit;
+  top: inherit;
+  left: 0;
+  bottom: 0;
+}
+
+/* hover动画效果 */
+.ant-dropdown-trigger:hover:not(.active):before,
+.ant-dropdown-trigger:hover:not(.active):after {
+  width: 100%;
+  transition: 800ms ease all;
+}
+
+
+.active .menu {
+  background-color: transparent !important;
+  border-radius: 30px;
+}
+
+.active .menu:hover {
+  color: #ff0000 !important;
+}
+
+/* ----- 消息框 ----- */
+.bubble {
+  .message-content-container {
+    border-radius: 12px;
+    box-shadow: var(--chat-customize-box-shadow);
+  }
+}
+
+
+
+/* ----- 弹出框 ----- */
+.ant-popover-inner {
+  background: var(--chat-background-assistant) !important;
+  box-shadow: var(--chat-customize-box-shadow) !important;
+}
+
+
+
+/* ----- 翻译 ----- */
+div[class^="InputContainer-"] {
+  background: var(--chat-background-assistant) !important;
+  box-shadow: var(--chat-customize-box-shadow) !important;
+}
+
+div[class^="OutputContainer-"] {
+  background: var(--chat-background-assistant) !important;
+  box-shadow: var(--chat-customize-box-shadow) !important;
+}
+
+div[class^="HistoryContainner-"] {
+  background: var(--chat-background-assistant) !important;
+  box-shadow: var(--chat-customize-box-shadow) !important;
+}
+
+/* ----- 通知/消息 ----- */
+
+.ant-notification-notice,
+.ant-message-notice-content,
+.ant-drawer-content {
+  background: var(--chat-background-assistant) !important;
+  box-shadow: var(--chat-customize-box-shadow) !important;
+}
+
+/* ----- 聊天历史 ----- */
+.react-flow.dark {
+  background: var(--chat-background-assistant) !important;
+}
+
+/* ----- 智能体 ----- */
+.ant-modal .ant-modal-content,
+div[class^="AgentCardContainer-"] {
+  background: var(--chat-background-assistant) !important;
+  box-shadow: var(--chat-customize-box-shadow) !important;
+}
+
+.ant-modal-confirm-content div[class^="AgentPrompt-"],
+div[class^="CardInfo-"] {
+  box-shadow: var(--chat-customize-box-shadow3) !important;
+  background: var(--chat-customize-collapse-background) !important;
+}
+
+
+/* ----- tab按钮 ----- */
+li[class^="MenuItem-"],
+#content-container [class^="ListItemContainer-"],
+.ant-segmented-group .ant-segmented-item-label {
+  border: 0 !important;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+li[class^="MenuItem-"].active,
+#content-container [class^="ListItemContainer-"].active,
+.ant-segmented-group .ant-segmented-item-label[aria-selected="true"] {
+  box-shadow: var(--chat-customize-box-shadow4) !important;
+  background: var(--color-background-soft) !important;
+  color: var(--chat-text-user);
+  border-radius: var(--list-item-border-radius);
+}
+
+li[class^="MenuItem-"]:hover,
+#content-container [class^="ListItemContainer-"]:hover,
+.ant-segmented-group .ant-segmented-item-label:hover {
+  box-shadow: var(--chat-customize-box-shadow4) !important;
+  background: var(--color-background-soft) !important;
+  border-radius: var(--list-item-border-radius);
+}
+
+
+
+#app-sidebar [class^="Icon-"].active,
+#app-sidebar [class^="Icon-"]:hover {
+  box-shadow: var(--chat-customize-box-shadow3) !important;
+  background: transparent !important;
+  transition: all 0.2s ease;
+  border: none !important;
+}
+
+div[class^="SettingGroup-"] .ant-segmented,
+div[class^="SettingContainer-"] div[class^="SettingGroup-"],
+.ant-segmented.ant-segmented-shape-round {
+  border-radius: var(--list-item-border-radius);
+  background-color: var(--chat-background-assistant) !important;
+  box-shadow: var(--chat-customize-box-shadow) !important;
+}
+
+.ant-segmented-thumb,
+label.ant-segmented-item.ant-segmented-item-selected {
+  background-color: transparent !important;
+  border: transparent !important;
+}
+
+.ant-segmented-thumb-motion-appear-active {
+  display: none !important;
+}
+
+
+/*模型服务以及思考框*/
+.ant-collapse-header {
+  background-color: var(--color-background-soft) !important;
+  border-radius: 0px !important;
+}
+
+.ant-collapse-content-box {
+  background-color: var(--chat-background-assistant) !important;
+}
+
+.ant-collapse,
+.ant-collapse-borderless {
+  border: none !important;
+}
+
+.ant-collapse-item {
+  border-radius: 12px !important;
+  box-shadow: var(--chat-customize-box-shadow) !important;
+  overflow: hidden;
+}
+
+/*搜索框*/
+.ant-modal-body .ant-input-affix-wrapper {
+  background-color: var(--color-background-mute) !important;
+  box-shadow: var(--chat-customize-box-shadow4) !important;
+  border: none;
+  border-radius: 30px;
+}
+
+.ant-modal-body .ant-input-affix-wrapper-focused {
+  background-color: var(--color-background-mute) !important;
+  box-shadow: var(--chat-customize-box-shadow) !important;
+  border: none;
+  border-radius: 30px;
+}
+
+div[class^="SearchIcon-"] {
+  background-color: transparent !important;
+}
+
+.markdown {
+  pre .shiki {
+    border: none !important;
+    background-color: transparent !important;
+    border-radius: 0px !important;
+  }
+
+  pre {
+    padding: 0 !important;
+    border-radius: 12px !important;
+    background: none !important;
+    box-shadow: none !important;
+  }
+
+  pre [class^="CodeBlockWrapper-"] {
+    border-radius: 12px !important;
+    box-shadow: var(--chat-customize-box-shadow) !important;
+    overflow: hidden;
+  }
+
+  pre [class^="CodeHeader-"] {
+    border-radius: 12px 12px 0 0 !important;
+    background-color: var(--color-background-soft) !important;
+    border-bottom: none !important;
+    margin-bottom: 0 !important;
+
+    /*红绿黄灯*/
+    justify-content: center;
+    color: var(--chat-customize-codeHeader);
+
+    &::before {
+      content: ' ';
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #fc625d;
+      box-shadow: 20px 0 #35cd4b, 40px 0 #fdbc40;
+      z-index: 1;
+    }
+  }
+
+  pre [class^="CodeContent-"] {
+    background-color: var(--chat-background-assistant) !important;
+    border-radius: 0 0 12px 12px !important;
+    border-top: none !important;
+    margin-top: 0 !important;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
+
+}
+
+/*莫名其妙的标题底色*/
+.ant-modal-header {
+  background-color: transparent !important;
+}
