@@ -1,0 +1,158 @@
+/* 宁静灰-卡片主题 */
+
+/* 浅色模式 */
+body[theme-mode="light"] {
+    /* 主要背景色 */
+    --color-background: hsl(210, 15%, 95%);
+    --color-background-soft: hsl(210, 10%, 92%);
+    --color-background-mute: hsl(210, 10%, 88%);
+    
+    /* 导航栏和聊天区域 */
+    --navbar-background: hsl(210, 10%, 90%);
+    --chat-background: hsl(200, 10%, 95%);
+    --chat-background-user: hsl(210, 10%, 88%);
+    --chat-background-assistant: hsl(200, 10%, 92%);
+    
+    /* 其他元素 */
+    --color-white: hsl(200, 10%, 98%);
+    --color-black-soft: hsl(210, 10%, 30%);
+  }
+  
+  body[theme-mode="light"] #content-container {
+    background-color: hsl(200, 10%, 95%) !important;
+  }
+  
+  /* 浅色模式下的折叠面板 */
+  body[theme-mode="light"] .ant-collapse {
+    background-color: hsl(210, 10%, 85%);
+  }
+  
+  body[theme-mode="light"] .ant-collapse-content {
+    background-color: hsl(210, 10%, 90%);
+  }
+  
+  /* 深色模式 */
+  body[theme-mode="dark"] {
+    /* 主要背景色 */
+    --color-background: hsl(210, 15%, 12%);
+    --color-background-soft: hsl(210, 10%, 20%);
+    --color-background-mute: hsl(210, 10%, 25%);
+    
+    /* 导航栏和聊天区域 */
+    --navbar-background: hsl(210, 15%, 10%);
+    --chat-background: hsl(210, 15%, 10%);
+    --chat-background-user: hsl(210, 10%, 20%);
+    --chat-background-assistant: hsl(210, 10%, 25%);
+    
+    /* 其他元素 */
+    --color-black-soft: hsl(210, 10%, 85%);
+  }
+  
+  body[theme-mode="dark"] #content-container {
+    background-color: hsl(210, 10%, 12%) !important;
+  }
+  
+  /* 深色模式下的折叠面板 */
+  body[theme-mode="dark"] .ant-collapse {
+    background-color: hsl(210, 10%, 30%);
+  }
+  
+  body[theme-mode="dark"] .ant-collapse-content {
+    background-color: hsl(210, 10%, 25%);
+  }
+  
+  /* 渐变背景效果 */
+  .gradient-primary-light {
+    background: linear-gradient(135deg, hsl(210, 15%, 65%) 0%, hsl(210, 15%, 60%) 100%);
+  }
+  
+  .gradient-side-light {
+    background: linear-gradient(135deg, hsl(210, 10%, 85%) 0%, hsl(210, 10%, 92%) 100%);
+  }
+  
+  .gradient-primary-dark {
+    background: linear-gradient(135deg, hsl(210, 15%, 50%) 0%, hsl(210, 15%, 45%) 100%);
+  }
+  
+  .gradient-side-dark {
+    background: linear-gradient(135deg, hsl(210, 10%, 5%) 0%, hsl(210, 10%, 12%) 100%);
+  }
+  
+  /* 按钮和交互元素 */
+  body[theme-mode="light"] .btn-primary,
+  body[theme-mode="light"] .primary-action {
+    background: linear-gradient(135deg, hsl(210, 15%, 65%) 0%, hsl(210, 15%, 60%) 100%);
+    color: hsl(200, 10%, 30%);
+  }
+  
+  body[theme-mode="dark"] .btn-primary,
+  body[theme-mode="dark"] .primary-action {
+    background: linear-gradient(135deg, hsl(210, 15%, 50%) 0%, hsl(210, 15%, 45%) 100%);
+    color: hsl(210, 10%, 85%);
+  }
+  
+  /* 文本颜色 */
+  body[theme-mode="light"] {
+    color: hsl(200, 10%, 30%);
+  }
+  
+  body[theme-mode="dark"] {
+    color: hsl(210, 10%, 85%);
+  }
+  
+  /* 边框和分隔线 */
+  body[theme-mode="light"] .border,
+  body[theme-mode="light"] .divider {
+    border-color: hsla(210, 10%, 80%, 0.12);
+  }
+  
+  body[theme-mode="dark"] .border,
+  body[theme-mode="dark"] .divider {
+    border-color: hsla(210, 10%, 40%, 0.12);
+  }
+  
+  /* 聊天气泡公共样式 */
+  .message-user,
+  .message-assistant {
+    border-radius: 18px;
+    padding: 14px 24px;
+    margin: 14px 12px 0 22px;
+    box-sizing: border-box;
+    position: relative;
+    word-wrap: break-word;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border: 1px solid transparent;
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
+  }
+  
+  /* 用户气泡 */
+  body[theme-mode="light"] .message-user {
+    background-color: hsl(210, 10%, 88%);
+    color: hsl(200, 10%, 30%);
+    border-color: hsla(210, 10%, 30%, 0.12);
+    box-shadow: 0 3px 8px hsla(210, 10%, 30%, 0.10);
+  }
+  
+  /* 助手气泡 */
+  body[theme-mode="light"] .message-assistant {
+    background-color: hsl(200, 10%, 92%);
+    color: hsl(200, 10%, 30%);
+    border-color: hsla(210, 10%, 30%, 0.08);
+    box-shadow: 0 3px 18px hsla(210, 10%, 30%, 0.06);
+  }
+  
+  /* 暗黑模式用户气泡 */
+  body[theme-mode="dark"] .message-user {
+    background-color: hsl(210, 10%, 20%);
+    color: hsl(210, 10%, 85%);
+    border-color: hsla(210, 10%, 85%, 0.2);
+    box-shadow: 0 3px 8px hsla(210, 10%, 85%, 0.15);
+  }
+  
+  /* 暗黑模式助手气泡 */
+  body[theme-mode="dark"] .message-assistant {
+    background-color: hsl(210, 10%, 25%);
+    color: hsl(210, 10%, 85%);
+    border-color: hsla(210, 10%, 85%, 0.15);
+    box-shadow: 0 3px 18px hsla(210, 10%, 85%, 0.1);
+  }
