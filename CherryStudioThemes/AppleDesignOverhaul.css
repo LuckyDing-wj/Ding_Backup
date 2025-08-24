@@ -1,0 +1,173 @@
+/**
+ * Cherry Studio - Apple Design Overhaul
+ * Crafted by Swift Expert
+ *
+ * This version addresses the stubborn sidebar glass effect by targeting the root cause:
+ * an opaque layout container blocking the backdrop. By making the main layout
+ * transparent, the sidebar's backdrop-filter can now function as intended.
+ *
+ * - Strategy: "Unblock" the view instead of faking the effect.
+ * - Key Fix: Set the background of the main `.ant-layout` to transparent.
+ * - Result: A true, functional, and elegant glassmorphism sidebar.
+ */
+
+:root {
+    /* ---  Apple Font System --- */
+    --font-apple-system: -apple-system, BlinkMacSystemFont, "SF Pro", "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Arial", sans-serif;
+    --font-apple-mono: "SF Mono", "Menlo", "Monaco", "JetBrains Mono", "Consolas", monospace;
+
+    /* ---  Core Variables (Dark Mode Default) --- */
+    --radius-l: 18px;
+    --radius-m: 12px;
+    --radius-s: 8px;
+
+    --transition-fast: all 0.2s cubic-bezier(0.5, 0, 0.25, 1);
+    --transition-normal: all 0.35s cubic-bezier(0.5, 0, 0.25, 1);
+
+    /* --- Dark Mode Palette --- */
+    --bg-page-dark: #1D1D1F; /* macOS Dark Mode Background */
+    --color-accent-dark: #0A84FF;  /* macOS Accent Blue (Dark) */
+    --bg-material-dark: rgba(50, 50, 52, 0.75);
+    --border-material-dark: rgba(255, 255, 255, 0.18);
+    --shadow-material-dark: 0 16px 32px rgba(0, 0, 0, 0.25), 0 6px 12px rgba(0, 0, 0, 0.2);
+    --text-primary-dark: rgba(255, 255, 255, 0.95);
+    --text-secondary-dark: rgba(235, 235, 245, 0.7);
+}
+
+/* ---  Light Mode --- */
+body[theme-mode="light"] {
+    --bg-page-light: #F5F5F7; /* macOS Light Mode Background */
+    --color-accent-light: #007AFF; /* macOS Accent Blue (Light) */
+    --bg-material-light: rgba(252, 252, 252, 0.8);
+    --border-material-light: rgba(0, 0, 0, 0.12);
+    --shadow-material-light: 0 16px 32px rgba(0, 0, 0, 0.08), 0 6px 12px rgba(0, 0, 0, 0.06);
+    --text-primary-light: rgba(0, 0, 0, 0.88);
+    --text-secondary-light: rgba(60, 60, 67, 0.68);
+}
+
+
+/* ---  Base & Typography with Ambient BG --- */
+body {
+    font-family: var(--font-apple-system) !important;
+    font-weight: 400;
+    letter-spacing: normal !important;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background var(--transition-normal);
+}
+body[theme-mode="dark"] { background: radial-gradient(circle at 50% 0%, hsl(240, 3%, 15%), var(--bg-page-dark) 70%); }
+body[theme-mode="light"] { background: radial-gradient(circle at 50% 0%, hsl(240, 5%, 98%), var(--bg-page-light) 80%); }
+
+/* --- THE KEY FIX --- */
+/* Make the main layout container transparent to allow backdrop-filter to work */
+.ant-layout, .ant-layout-has-sider, #root > .ant-layout {
+    background: transparent !important;
+}
+
+
+h1, h2, h3, h4, h5, h6 { font-family: var(--font-apple-system) !important; font-weight: 600 !important; color: var(--text-primary-dark); }
+body[theme-mode="light"] h1, body[theme-mode="light"] h2, body[theme-mode="light"] h3, body[theme-mode="light"] h4, body[theme-mode="light"] h5, body[theme-mode="light"] h6 { color: var(--text-primary-light); }
+.markdown p, .markdown li, .markdown blockquote, .markdown table { font-family: var(--font-apple-system) !important; font-weight: 400; color: var(--text-secondary-dark); }
+body[theme-mode="light"] .markdown p, body[theme-mode="light"] .markdown li, body[theme-mode="light"] .markdown blockquote, body[theme-mode="light"] .markdown table { color: var(--text-secondary-light); }
+code, pre, .cherry-code-content, .cherry-code-content * { font-family: var(--font-apple-mono) !important; font-size: 0.95em !important; line-height: 1.6 !important; }
+strong, b { color: var(--color-accent-dark) !important; }
+body[theme-mode="light"] strong, b { color: var(--color-accent-light) !important; }
+
+
+/* ---  Applying Material Style to Components --- */
+.inputbar-container,
+.ant-popover-inner,
+.ant-notification-notice,
+.ant-message-notice-content,
+.ant-drawer-content,
+.ant-modal-content,
+.cherry-code-wrapper,
+.bubble .message-content-container {
+    background-color: var(--bg-material-dark) !important;
+    backdrop-filter: blur(30px) saturate(1.8);
+    -webkit-backdrop-filter: blur(30px) saturate(1.8);
+    border-radius: var(--radius-l) !important;
+    border: 1px solid var(--border-material-dark) !important;
+    box-shadow: var(--shadow-material-dark) !important;
+    color: var(--text-primary-dark) !important;
+    transition: var(--transition-normal);
+    overflow: hidden;
+}
+body[theme-mode="light"] .inputbar-container,
+body[theme-mode="light"] .ant-popover-inner,
+body[theme-mode="light"] .ant-notification-notice,
+body[theme-mode="light"] .ant-message-notice-content,
+body[theme-mode="light"] .ant-drawer-content,
+body[theme-mode="light"] .ant-modal-content,
+body[theme-mode="light"] .cherry-code-wrapper,
+body[theme-mode="light"] .bubble .message-content-container {
+    background-color: var(--bg-material-light) !important;
+    border: 1px solid var(--border-material-light) !important;
+    box-shadow: var(--shadow-material-light) !important;
+    color: var(--text-primary-light) !important;
+}
+
+/* ---  Sidebar --- */
+div[class*="AgentsGroupList-"] {
+    background-color: var(--bg-material-dark) !important;
+    backdrop-filter: blur(30px) saturate(1.8);
+    -webkit-backdrop-filter: blur(30px) saturate(1.8);
+    border-right: 1px solid var(--border-material-dark) !important;
+    padding: 8px !important;
+    min-width: 160px !important; height: 100vh !important; display: flex !important; flex-direction: column !important; gap: 4px !important; overflow-y: auto !important;
+}
+body[theme-mode="light"] div[class*="AgentsGroupList-"] {
+    background-color: var(--bg-material-light) !important;
+    border-right-color: var(--border-material-light) !important;
+}
+div[class*="AgentsGroupList-"]::-webkit-scrollbar { display: none !important; }
+
+/* --- Chat Bubble & Input --- */
+.bubble .message-content-container { padding: 14px 20px !important; }
+.inputbar-container { padding: 8px !important; }
+.inputbar-container:focus-within {
+    border-color: rgba(10, 132, 255, 0.7) !important;
+    box-shadow: var(--shadow-material-dark), 0 0 0 4px rgba(10, 132, 255, 0.3) !important;
+    transform: translateY(-2px);
+}
+body[theme-mode="light"] .inputbar-container:focus-within {
+    border-color: rgba(0, 122, 255, 0.7) !important;
+    box-shadow: var(--shadow-material-light), 0 0 0 4px rgba(0, 122, 255, 0.2) !important;
+}
+.inputbar-container textarea { color: var(--text-primary-dark) !important; }
+body[theme-mode="light"] .inputbar-container textarea { color: var(--text-primary-light) !important; }
+
+/* ---  Code Blocks (Centered Title) --- */
+.cherry-code-wrapper { margin: 1.5em 0; }
+.markdown pre [class^="CodeHeader-"] { position: relative; display: block; text-align: center; line-height: 42px; height: 42px; padding: 0 80px !important; background-color: rgba(0, 0, 0, 0.25) !important; border-bottom: 1px solid var(--border-material-dark) !important; color: var(--text-secondary-dark); }
+body[theme-mode="light"] .markdown pre [class^="CodeHeader-"] { background-color: rgba(255, 255, 255, 0.3) !important; border-bottom: 1px solid var(--border-material-light) !important; color: var(--text-secondary-light); }
+.markdown pre [class^="CodeHeader-"]::before { content: ' '; position: absolute; left: 16px; top: 50%; transform: translateY(-50%); width: 12px; height: 12px; border-radius: 50%; background: #FF5F56; box-shadow: 20px 0 #FFBD2E, 40px 0 #27C93F; }
+.markdown pre [class^="CodeContent-"] { padding: 16px !important; margin: 0 !important; }
+
+
+/* --- Lists & Menu Items --- */
+.cherry-menu-item, .cherry-list-item { border-radius: var(--radius-m) !important; color: var(--text-secondary-dark); transition: var(--transition-fast); border: none !important; background: transparent !important; margin: 2px 4px !important; padding: 8px 12px !important; }
+body[theme-mode="light"] .cherry-menu-item, body[theme-mode="light"] .cherry-list-item { color: var(--text-secondary-light); }
+.cherry-menu-item:hover, .cherry-list-item:hover { background: rgba(255, 255, 255, 0.1) !important; color: var(--text-primary-dark) !important; }
+body[theme-mode="light"] .cherry-menu-item:hover, body[theme-mode="light"] .cherry-list-item:hover { background: rgba(0, 0, 0, 0.08) !important; color: var(--text-primary-light) !important; }
+.cherry-menu-item.active, .cherry-list-item.active { background: var(--color-accent-dark) !important; color: #fff !important; font-weight: 500; }
+body[theme-mode="light"] .cherry-menu-item.active, body[theme-mode="light"] .cherry-list-item.active { background: var(--color-accent-light) !important; color: #fff !important; }
+
+
+/* --- Buttons & Controls --- */
+.ant-btn { border-radius: var(--radius-m) !important; border: none !important; background-color: rgba(255, 255, 255, 0.12) !important; color: var(--text-primary-dark) !important; transition: var(--transition-fast); }
+.ant-btn:hover { background-color: rgba(255, 255, 255, 0.2) !important; transform: scale(1.03); }
+body[theme-mode="light"] .ant-btn { background-color: rgba(0, 0, 0, 0.08) !important; color: var(--text-primary-light) !important; }
+body[theme-mode="light"] .ant-btn:hover { background-color: rgba(0, 0, 0, 0.12) !important; }
+
+
+/* --- Selection --- */
+::selection { background-color: rgba(10, 132, 255, 0.4); color: var(--text-primary-dark); }
+body[theme-mode="light"] ::selection { color: var(--text-primary-light); }
+
+/* --- Cleanup & Reset --- */
+.cherry-3d-enhanced::before, .cherry-3d-enhanced::after, [class*="ListItemContent-"]::before, [class*="ListItemContent-"]::after, [class*="TitleText-"]::before, [class*="TitleText-"]::after,
+.markdown pre [class^="CodeHeader-"] .iconfont.icon-copy.copy {
+    display: none !important;
+}
