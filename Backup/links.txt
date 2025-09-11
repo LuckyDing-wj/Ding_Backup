@@ -1,3 +1,6 @@
+https://gh-proxy.com/https://raw.githubusercontent.com/MhdiTaheri/V2rayCollector/main/sub/vless
+https://gh-proxy.com/https://raw.githubusercontent.com/mfuu/v2ray/master/v2ray
+https://gh-proxy.com/https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list_raw.txt
 https://gh-proxy.com/https://raw.githubusercontent.com/snakem982/proxypool/main/source/clash-meta.yaml
 https://gh-proxy.com/https://raw.githubusercontent.com/snakem982/proxypool/main/source/clash-meta-2.yaml
 https://gh-proxy.com/https://raw.githubusercontent.com/go4sharing/sub/main/sub.yaml
@@ -18,8 +21,6 @@ https://gh-proxy.com/https://raw.githubusercontent.com/chengaopan/AutoMergePubli
 https://gh-proxy.com/https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/clash.yml
 https://gh-proxy.com/https://raw.githubusercontent.com/zhangkaiitugithub/passcro/main/speednodes.yaml
 https://gh-proxy.com/https://raw.githubusercontent.com/mgit0001/test_clash/main/heima.txt
-https://gh-proxy.com/https://raw.githubusercontent.com/mai19950/clashgithub_com/main/site
-https://gh-proxy.com/https://raw.githubusercontent.com/mai19950/sites/main/sub/v2ray/base64
 https://gh-proxy.com/https://raw.githubusercontent.com/aiboboxx/v2rayfree/main/v2
 https://gh-proxy.com/https://raw.githubusercontent.com/Pawdroid/Free-servers/main/sub
 https://gh-proxy.com/https://raw.githubusercontent.com/shahidbhutta/Clash/main/Router
@@ -42,12 +43,10 @@ https://gh-proxy.com/https://raw.githubusercontent.com/Barabama/FreeNodes/main/n
 https://gh-proxy.com/https://raw.githubusercontent.com/Barabama/FreeNodes/main/nodes/nodefree.txt
 https://gh-proxy.com/https://raw.githubusercontent.com/Barabama/FreeNodes/main/nodes/v2rayshare.txt
 https://gh-proxy.com/https://raw.githubusercontent.com/Barabama/FreeNodes/main/nodes/wenode.txt
-https://gh-proxy.com/https://raw.githubusercontent.com/ggborr/FREEE-VPN/main/4V2ray
 https://gh-proxy.com/https://raw.githubusercontent.com/SamanGho/v2ray_collector/main/v2tel_links1.txt
 https://gh-proxy.com/https://raw.githubusercontent.com/SamanGho/v2ray_collector/main/v2tel_links2.txt
 https://gh-proxy.com/https://raw.githubusercontent.com/acymz/AutoVPN/main/data/V2.txt
 https://gh-proxy.com/https://raw.githubusercontent.com/peacefish/nodefree/main/sub/proxy_cf.yaml
-https://gh-proxy.com/https://raw.githubusercontent.com/darknessm427/IranConfigCollector/main/V2.txt
 https://gh-proxy.com/https://raw.githubusercontent.com/NiceVPN123/NiceVPN/main/utils/pool/output.yaml
 https://gh-proxy.com/https://raw.githubusercontent.com/yorkLiu/FreeV2RayNode/main/v2ray.txt
 https://gh-proxy.com/https://raw.githubusercontent.com/gfpcom/free-proxy-list/main/list/ss.txt
@@ -59,8 +58,3 @@ https://gh-proxy.com/https://raw.githubusercontent.com/NiceVPN123/NiceVPN/main/C
 https://gh-proxy.com/https://raw.githubusercontent.com/lagzian/SS-Collector/main/SS/trinity_clash.yaml
 https://gh-proxy.com/https://raw.githubusercontent.com/lagzian/SS-Collector/main/SS/VM_TrinityBase
 https://gh-proxy.com/https://raw.githubusercontent.com/lagzian/SS-Collector/main/SS/TrinityBase
-https://gh-proxy.com/https://raw.githubusercontent.com/darknessm427/IranConfigCollector/main/bulk/ss_iran.txt
-https://gh-proxy.com/https://raw.githubusercontent.com/darknessm427/IranConfigCollector/main/bulk/trojan_iran.txt
-https://gh-proxy.com/https://raw.githubusercontent.com/darknessm427/IranConfigCollector/main/bulk/vless_iran.txt
-https://gh-proxy.com/https://raw.githubusercontent.com/darknessm427/IranConfigCollector/main/bulk/vmess_iran.txt
-https://raw.githubusercontent.com/byrisk/Node/refs/heads/main/config.yaml
