@@ -1,0 +1,948 @@
+/*
+    Apple Zen Theme for Cherry Studio
+    --------------------------------------------------
+    A minimal, clean, elegant theme inspired by Apple’s macOS/iOS design language.
+    - Typography: system-ui / San Francisco first; clear hierarchy
+    - Layout: generous whitespace; calm rhythm
+    - Radius: soft, consistent corners
+    - Depth & Material: subtle shadows and translucent (glass) surfaces
+
+    Usage
+    - Load this file after base styles to apply globally
+    - Supports light/dark via body[theme-mode="light|dark"]
+
+    Notes
+    - Do not import custom web fonts; rely on system fonts for performance
+    - Variables are centralized for easy customization
+    */
+
+    /* ------------------------------
+      Design Tokens (Base)
+    ------------------------------ */
+  :root {
+      /* Typography */
+      --az-font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, "Segoe UI", Roboto, "Noto Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+      --az-font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --az-font-size-base: 15px; /* aligns with optimized small scale from 玻璃.css */
+      --az-line-height: 1.55;
+
+      /* Spacing scale */
+      --az-space-1: 4px;
+      --az-space-2: 8px;
+      --az-space-3: 12px;
+      --az-space-4: 16px;
+      --az-space-5: 20px;
+      --az-space-6: 24px;
+
+      /* Radius */
+      --az-radius-sm: 8px;
+      --az-radius-md: 12px; /* matches bubbles in 玻璃.css */
+      --az-radius-lg: 16px;
+      --az-radius-pill: 999px;
+
+      /* Motion */
+      --az-duration-fast: 120ms;
+      --az-duration: 200ms;
+      --az-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+      /* Accent (macOS blue) */
+      --az-accent: #597da1;
+      --az-accent-rgb: 10, 132, 255;
+
+      /* Focus ring */
+      --az-focus-ring: 0 0 0 3px rgba(var(--az-accent-rgb), 0.35);
+      /* Inputbar softer, thinner focus halo */
+      --az-focus-ring-width: 2px;
+      --az-focus-ring-color: rgba(var(--az-accent-rgb), 0.22);
+      --az-focus-fade-duration: 1200ms;
+
+      /* Shadows (mode specific values below) */
+      --az-shadow-sm: 0 1px 2px rgba(0,0,0,0.06);
+      --az-shadow-md: 0 6px 18px rgba(0,0,0,0.12);
+      --az-shadow-lg: 0 16px 40px rgba(0,0,0,0.18);
+
+      /* Material (backdrop) strength */
+      --az-backdrop-blur: 22px; /* stronger, softer glass */
+      --az-backdrop-saturate: 160%;
+
+      /* Noise overlay (set per mode) */
+      --az-noise-image: none;
+
+      /* Selected state helpers (set per mode) */
+      --az-selected-bg: rgba(var(--az-accent-rgb), 0.16);
+      --az-selected-bar: rgba(var(--az-accent-rgb), 0.85);
+      /* Spacing for selected left accent */
+      --az-selected-bar-offset: 10px; /* distance from left edge */
+      --az-selected-bar-width: 3px;
+    --az-selected-gap: 10px; /* space between accent and content */
+    --az-selected-dot-size: 8px; /* for dot indicator mode */
+    /* Section spacing between chat area and selector */
+    --az-section-gap: 12px;
+    /* Layout gap between selector and chat area */
+    --az-layout-gap: 16px;
+
+      /* Code block tokens */
+      --az-code-radius: var(--az-radius-sm);
+      --az-code-bg: var(--az-surface);
+      --az-code-border: var(--az-border);
+      --az-code-header-bg: var(--az-surface-strong);
+      --az-code-stroke: 0px; /* default frameless */
+    /* Chat fade overlay */
+    --az-fade-height: 30px; /* progressive feather height above input */
+    --az-fade-color: var(--az-surface); /* fade into inputbar surface color */
+    --az-fade-blur: 2px; /* gaussian blur strength above input */
+    --az-edge-blur-height: 16px; /* thin blur band just at input top edge */
+    /* Around-input feather ring (outside the capsule) */
+    --az-ring-feather: 0px; /* disabled: outer feather ring turned off */
+    /* Side-only feather thickness (left/right) */
+    --az-side-feather: 16px;
+    /* Input border size used for safe insets (avoid covering borders) */
+    --az-input-border-size: 1px;
+    /* (removed) wrap-feel variables */
+  }
+
+    /* ------------------------------
+      Light Mode Tokens
+    ------------------------------ */
+    body[theme-mode="light"] {
+      --az-bg: #f5f5f7; /* macOS neutral background */
+      --az-text-1: #0b0b0f; /* primary */
+      --az-text-2: #5f6368; /* secondary */
+      --az-text-inverse: #ffffff;
+
+      /* Surfaces (white glass) - slightly less opaque for more natural blend */
+      --az-surface: rgba(255,255,255,0.64);
+      --az-surface-soft: rgba(255,255,255,0.50);
+      --az-surface-strong: rgba(255,255,255,0.82);
+
+      /* Borders */
+      --az-border: rgba(0,0,0,0.08);
+      --color-primary-soft: #597DA1;
+      --az-border-strong: rgba(0,0,0,0.12);
+
+      /* Noise & selected contrast */
+      --az-noise-image: radial-gradient(rgba(0,0,0,0.014) 0.5px, transparent 0.6px);
+      --az-selected-bg: rgba(var(--az-accent-rgb), 0.18); /* improved contrast on light bg */
+      --az-selected-bar: rgba(var(--az-accent-rgb), 0.95);
+
+      /* Code tokens (light) */
+      --az-code-bg: rgba(255,255,255,0.72);
+      --az-code-border: var(--az-border-strong);
+      --az-code-header-bg: rgba(255,255,255,0.90);
+    }
+
+    /* ------------------------------
+      Dark Mode Tokens
+    ------------------------------ */
+    body[theme-mode="dark"] {
+      --az-bg: #1e1e20; /* aligns with 玻璃.css brighter dark */
+      --az-text-1: #f1f3f5;
+      --az-text-2: #b6bcc3;
+      --az-text-inverse: #0b0b0f;
+
+      /* Surfaces (white-on-dark glass) */
+      --az-surface: rgba(255,255,255,0.10);
+      --az-surface-soft: rgba(255,255,255,0.06);
+      --az-surface-strong: rgba(255,255,255,0.16);
+
+      /* Borders */
+      --az-border: rgba(255,255,255,0.10);
+      --az-border-strong: rgba(255,255,255,0.16);
+
+      /* Noise & selected */
+      --az-noise-image: radial-gradient(rgba(255,255,255,0.02) 0.5px, transparent 0.6px);
+      --az-selected-bg: rgba(var(--az-accent-rgb), 0.16);
+      --az-selected-bar: rgba(var(--az-accent-rgb), 0.88);
+
+      /* Code tokens (dark) */
+      --az-code-bg: rgba(255,255,255,0.12);
+      --az-code-border: var(--az-border-strong);
+      --az-code-header-bg: rgba(255,255,255,0.18);
+    }
+
+    /* ------------------------------
+      Base / Typography
+    ------------------------------ */
+    html, body {
+      font-family: var(--az-font-family);
+      font-size: var(--az-font-size-base);
+      line-height: var(--az-line-height);
+      color: var(--az-text-1);
+      background: var(--az-bg);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    ::selection {
+      background: rgba(var(--az-accent-rgb), 0.24);
+      color: var(--az-text-inverse);
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+      color: var(--az-text-1);
+      margin: 0 0 var(--az-space-3);
+      font-weight: 700; /* crisp hierarchy */
+    }
+    h1 { font-size: 1.75rem; }
+    h2 { font-size: 1.5rem; }
+    h3 { font-size: 1.25rem; }
+    h4 { font-size: 1.125rem; }
+    h5 { font-size: 1rem; }
+    h6 { font-size: 0.9375rem; }
+
+    p, li { color: var(--az-text-1); }
+    small { color: var(--az-text-2); }
+
+    a { color: var(--az-accent); text-decoration: none; transition: color var(--az-duration) var(--az-ease); }
+    a:hover { color: rgba(var(--az-accent-rgb), 0.85); }
+    a:active { color: rgba(var(--az-accent-rgb), 0.75); }
+    a:focus-visible, .ant-btn:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible,
+    .ant-select-selector:focus-within, .ant-radio-wrapper:focus-within, .ant-checkbox-wrapper:focus-within {
+      outline: none;
+      box-shadow: var(--az-focus-ring);
+    }
+
+    /* Prevent double focus rings: when Ant uses affix wrapper, show ring on wrapper only */
+    .ant-input-affix-wrapper .ant-input:focus,
+    .ant-input-affix-wrapper .ant-input:focus-visible {
+      box-shadow: none !important;
+    }
+
+    /* ------------------------------
+      Materials / Glass Surfaces
+    ------------------------------ */
+    .az-surface, /* helper class */
+    [class^="Main"],
+    [class^="MainContainer"],
+    [class^="MainContent"],
+    [class^="SettingContainer"],
+    [class^="SettingGroup"],
+    [class^="MenuList"],
+    #content-container,
+    .minapp-drawer .ant-drawer-body,
+    .ant-modal .ant-modal-content,
+    .ant-popover-inner,
+    .ant-tooltip-inner,
+    .ant-message-notice-content,
+    .ant-notification-notice,
+    .ant-collapse,
+    .ant-dropdown-menu,
+    .ant-select-dropdown {
+      background-color: var(--az-surface);
+      background-image: var(--az-noise-image);
+      background-size: 4px 4px;
+      background-blend-mode: overlay;
+      backdrop-filter: saturate(var(--az-backdrop-saturate)) blur(var(--az-backdrop-blur));
+      -webkit-backdrop-filter: saturate(var(--az-backdrop-saturate)) blur(var(--az-backdrop-blur));
+      border: 1px solid var(--az-border);
+      border-radius: var(--az-radius-md);
+      box-shadow: var(--az-shadow-md);
+    }
+
+    /* Stronger material for fixed toolbars/sidebars */
+    .ant-drawer-content,
+    [class^="Sidebar"],
+    [class^="Toolbar"],
+    #chat {
+      background-color: var(--az-surface-strong);
+      background-image: var(--az-noise-image);
+      background-size: 4px 4px;
+      background-blend-mode: overlay;
+      backdrop-filter: saturate(var(--az-backdrop-saturate)) blur(var(--az-backdrop-blur));
+      -webkit-backdrop-filter: saturate(var(--az-backdrop-saturate)) blur(var(--az-backdrop-blur));
+      border: 1px solid var(--az-border-strong);
+    }
+
+    /* Chat bubbles (align with 玻璃.css intent) */
+    .bubble .message-content-container,
+    .message-assistant .message-content-container,
+    .message-user .message-content-container {
+      background-color: var(--az-surface);
+      background-image: var(--az-noise-image);
+      background-size: 4px 4px;
+      background-blend-mode: overlay;
+      backdrop-filter: saturate(var(--az-backdrop-saturate)) blur(var(--az-backdrop-blur));
+      -webkit-backdrop-filter: saturate(var(--az-backdrop-saturate)) blur(var(--az-backdrop-blur));
+      border: 1px solid var(--az-border);
+      border-radius: var(--az-radius-md);
+      padding: var(--az-space-4);
+    }
+
+    /* ------------------------------
+      Buttons (Ant Design + generic)
+    ------------------------------ */
+    .ant-btn,
+    button {
+      border-radius: var(--az-radius-sm);
+      border: 1px solid var(--az-border);
+      background: var(--az-surface-soft);
+      color: var(--az-text-1);
+      box-shadow: var(--az-shadow-sm);
+      transition: all var(--az-duration) var(--az-ease);
+    }
+    .ant-btn:hover,
+    button:hover { background: var(--az-surface); border-color: var(--az-border-strong); }
+    .ant-btn:active,
+    button:active { transform: translateY(0.5px); box-shadow: none; }
+    .ant-btn:focus-visible,
+    button:focus-visible { outline: none; box-shadow: var(--az-focus-ring); }
+
+    .ant-btn-primary,
+    button.ant-btn-primary {
+      color: #fff;
+      background: linear-gradient(180deg, rgba(var(--az-accent-rgb), 0.95), rgba(var(--az-accent-rgb), 0.85));
+      border-color: rgba(var(--az-accent-rgb), 0.9);
+      box-shadow: 0 6px 16px rgba(var(--az-accent-rgb), 0.25);
+    }
+    .ant-btn-primary:hover { filter: brightness(1.03); }
+    .ant-btn-primary:active { filter: brightness(0.96); }
+
+    .ant-btn-link,
+    .ant-btn-text { color: var(--az-accent); background: transparent; border-color: transparent; }
+    .ant-btn-link:hover,
+    .ant-btn-text:hover { color: rgba(var(--az-accent-rgb), 0.85); }
+
+    /* Segmented */
+    .ant-segmented-group { background: var(--az-surface-soft); border-radius: var(--az-radius-pill); padding: 2px; }
+    .ant-segmented-item-label { border-radius: var(--az-radius-pill); }
+    .ant-segmented-item-label[aria-selected="true"] { background: var(--az-surface-strong); color: var(--az-text-1); }
+
+    /* ------------------------------
+      Inputs & Forms
+    ------------------------------ */
+    input, textarea, select, .ant-input, .ant-input-affix-wrapper, .ant-select-selector, .ant-picker-input > input {
+      font-family: var(--az-font-family);
+      color: var(--az-text-1);
+    }
+
+    .ant-input,
+    .ant-input-affix-wrapper,
+    textarea,
+    select {
+      background-color: var(--az-surface-soft);
+      background-image: var(--az-noise-image);
+      background-size: 4px 4px;
+      background-blend-mode: overlay;
+      border: 1px solid var(--az-border);
+      border-radius: var(--az-radius-sm);
+      box-shadow: var(--az-shadow-sm);
+      transition: all var(--az-duration) var(--az-ease);
+    }
+    .ant-input:hover, .ant-input-affix-wrapper:hover, textarea:hover, select:hover { background: var(--az-surface); }
+    .ant-input-affix-wrapper-focused { outline: none; box-shadow: var(--az-focus-ring); border-color: rgba(var(--az-accent-rgb), 0.6); }
+    .ant-input:focus, textarea:focus, select:focus { outline: none; box-shadow: var(--az-focus-ring); border-color: rgba(var(--az-accent-rgb), 0.6); }
+
+    /* Subtle blur ring around inputs (focus state)
+       - Uses a hollow pseudo-element outside the wrapper to blur the surroundings
+       - Keeps the input interior crisp */
+    .ant-input-affix-wrapper { position: relative; overflow: visible !important; z-index: 10; }
+    .ant-input-affix-wrapper::after {
+      content: "";
+      position: absolute;
+      inset: calc(-1 * var(--az-space-3));
+      border-radius: calc(var(--az-radius-sm) + var(--az-space-3));
+      pointer-events: none;
+      background: transparent; /* outer feather */
+      backdrop-filter: blur(calc(var(--az-fade-blur) * 1.25)) saturate(120%);
+      -webkit-backdrop-filter: blur(calc(var(--az-fade-blur) * 1.25)) saturate(120%);
+      z-index: -1; /* keep under hugging ring and input content */
+      padding: var(--az-space-3);
+      /* Hollow ring: border-box minus content-box */
+      -webkit-mask:
+        linear-gradient(#000 0 0) border-box,
+        linear-gradient(#000 0 0) content-box;
+      -webkit-mask-composite: xor;
+              mask:
+        linear-gradient(#000 0 0) border-box,
+        linear-gradient(#000 0 0) content-box;
+              mask-composite: exclude;
+      opacity: 0.6; /* always-on subtle ring */
+      transition: opacity var(--az-duration) var(--az-ease);
+      will-change: backdrop-filter, opacity;
+    }
+    .ant-input-affix-wrapper:hover::after { opacity: 0.75; }
+    .ant-input-affix-wrapper:focus-within::after { opacity: 0.9; }
+    /* Hugging ring for smaller inputs removed */
+    .ant-input-affix-wrapper::before { display: none !important; content: none !important; }
+    /* Keep outside blur from being clipped */
+    .ant-input-affix-wrapper { overflow: visible; }
+
+    /* Checkbox / Radio / Switch */
+    .ant-checkbox-checked .ant-checkbox-inner,
+    .ant-radio-checked .ant-radio-inner,
+    .ant-switch-checked {
+      background: var(--az-accent) !important;
+      border-color: var(--az-accent) !important;
+    }
+    .ant-checkbox-inner, .ant-radio-inner { border-radius: 4px; }
+    .ant-radio-inner { border-radius: 50%; }
+
+    /* Tabs */
+    .ant-tabs-nav { margin: 0 0 var(--az-space-3) 0; }
+    .ant-tabs-tab { border-radius: var(--az-radius-pill); padding: 6px 12px; }
+    .ant-tabs-tab:hover { background: var(--az-surface-soft); }
+    .ant-tabs-tab.ant-tabs-tab-active { background: rgba(var(--az-accent-rgb), 0.12); }
+    .ant-tabs-ink-bar { background: var(--az-accent) !important; height: 2px; }
+
+    /* ------------------------------
+      Tables
+    ------------------------------ */
+    .ant-table-wrapper { background: var(--az-surface); border: 1px solid var(--az-border); border-radius: var(--az-radius-md); box-shadow: var(--az-shadow-md); overflow: hidden; }
+    .ant-table { background: transparent; }
+    .ant-table-thead > tr > th { background: var(--az-surface-strong) !important; color: var(--az-text-2); border-bottom: 1px solid var(--az-border-strong) !important; }
+    .ant-table-tbody > tr > td { border-bottom: 1px solid var(--az-border); }
+    .ant-table-tbody > tr:hover > td { background: var(--az-surface-soft); }
+
+    /* Anti double-border: when wrapper provides a border, inner elements drop their own borders */
+    .ant-table-wrapper .ant-table, .ant-modal .ant-modal-content .ant-modal-body, .ant-drawer-content .ant-drawer-body,
+    .ant-popover-inner .ant-popover-inner-content, .ant-notification-notice .ant-notification-notice-content,
+    .ant-dropdown-menu .ant-dropdown-menu-item, .ant-select-dropdown .ant-select-item,
+    .ant-collapse .ant-collapse-content, .ant-menu .ant-menu-item {
+      border: 0 !important;
+      box-shadow: none;
+    }
+
+    /* ------------------------------
+      Popover / Tooltip / Modal / Drawer / Collapse
+    ------------------------------ */
+    .ant-popover-inner, .ant-tooltip-inner, .ant-modal-content, .ant-drawer-content, .ant-collapse, .ant-message-notice-content, .ant-notification-notice {
+      background-color: var(--az-surface);
+      background-image: var(--az-noise-image);
+      background-size: 4px 4px;
+      background-blend-mode: overlay;
+      border: 1px solid var(--az-border);
+      box-shadow: var(--az-shadow-lg);
+    }
+    .ant-modal-header { background: transparent; border-bottom: 1px solid var(--az-border); }
+    .ant-modal-title { color: var(--az-text-1); font-weight: 600; }
+    .ant-modal-body { color: var(--az-text-1); }
+    .ant-modal-close { color: var(--az-text-2); }
+    .ant-modal .ant-btn { box-shadow: none; }
+
+    .ant-drawer-header { background: transparent; border-bottom: 1px solid var(--az-border); }
+    .ant-collapse-item { border-bottom: 1px solid var(--az-border); }
+    .ant-collapse-header { color: var(--az-text-1); }
+    .ant-collapse-content { background: transparent; border-top: 1px solid var(--az-border); }
+
+    /* Dropdowns & Menus */
+    .ant-dropdown-menu, .ant-menu { background: var(--az-surface); border: 1px solid var(--az-border); box-shadow: var(--az-shadow-lg); }
+    .ant-dropdown-menu-item, .ant-menu-item { border-radius: var(--az-radius-sm); border: 0; }
+    .ant-dropdown-menu-item:hover, .ant-menu-item:hover { background: var(--az-surface-soft); }
+    /* Selected state with left accent bar for clarity and contrast */
+    .ant-dropdown-menu-item-selected, .ant-menu-item-selected,
+    .ant-select-item-option-selected, [class^="TopicListItem"].active, [class^="ProviderListItem"].active, [class^="MenuItem"].active {
+      position: relative;
+      background: var(--az-selected-bg) !important;
+      /* ensure content has breathing room from the indicator dot */
+      padding-left: calc(var(--az-selected-bar-offset, 10px) + var(--az-selected-dot-size, 8px) + var(--az-selected-gap, 8px)) !important;
+    }
+    .ant-dropdown-menu-item-selected::before, .ant-menu-item-selected::before,
+    .ant-select-item-option-selected::before, [class^="TopicListItem"].active::before, [class^="ProviderListItem"].active::before, [class^="MenuItem"].active::before {
+      content: "";
+      position: absolute;
+      left: calc(var(--az-selected-bar-offset, 10px) + 2px);
+      top: 50%;
+      transform: translateY(-50%);
+      bottom: auto;
+      width: var(--az-selected-dot-size, 8px);
+      height: var(--az-selected-dot-size, 8px);
+      border-radius: 999px;
+      background: radial-gradient(circle at 40% 40%, rgba(var(--az-accent-rgb), 0.98), rgba(var(--az-accent-rgb), 0.75));
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.5) inset, 0 0 8px rgba(var(--az-accent-rgb), 0.25);
+    }
+
+    /* Optional: Dot indicator mode — add class on body: .az-selection-dot */
+    body.az-selection-dot .ant-dropdown-menu-item-selected::before,
+    body.az-selection-dot .ant-menu-item-selected::before,
+    body.az-selection-dot .ant-select-item-option-selected::before,
+    body.az-selection-dot [class^="TopicListItem"].active::before,
+    body.az-selection-dot [class^="ProviderListItem"].active::before,
+    body.az-selection-dot [class^="MenuItem"].active::before {
+      left: calc(var(--az-selected-bar-offset, 10px) + 2px);
+      top: 50%;
+      bottom: auto;
+      width: var(--az-selected-dot-size, 8px);
+      height: var(--az-selected-dot-size, 8px);
+      border-radius: 999px;
+    }
+    body.az-selection-dot .ant-dropdown-menu-item-selected,
+    body.az-selection-dot .ant-menu-item-selected,
+    body.az-selection-dot .ant-select-item-option-selected,
+    body.az-selection-dot [class^="TopicListItem"].active,
+    body.az-selection-dot [class^="ProviderListItem"].active,
+    body.az-selection-dot [class^="MenuItem"].active {
+      padding-left: calc(var(--az-selected-bar-offset, 10px) + var(--az-selected-dot-size, 8px) + var(--az-selected-gap, 8px)) !important;
+    }
+
+    /* Optional: Outline indicator mode — add class on body: .az-selection-outline */
+    body.az-selection-outline .ant-dropdown-menu-item-selected::before,
+    body.az-selection-outline .ant-menu-item-selected::before,
+    body.az-selection-outline .ant-select-item-option-selected::before,
+    body.az-selection-outline [class^="TopicListItem"].active::before,
+    body.az-selection-outline [class^="ProviderListItem"].active::before,
+    body.az-selection-outline [class^="MenuItem"].active::before { display: none; }
+    body.az-selection-outline .ant-dropdown-menu-item-selected,
+    body.az-selection-outline .ant-menu-item-selected,
+    body.az-selection-outline .ant-select-item-option-selected,
+    body.az-selection-outline [class^="TopicListItem"].active,
+    body.az-selection-outline [class^="ProviderListItem"].active,
+    body.az-selection-outline [class^="MenuItem"].active {
+      box-shadow: inset 0 0 0 1px rgba(var(--az-accent-rgb), 0.45), 0 0 0 4px rgba(var(--az-accent-rgb), 0.12);
+      padding-left: var(--az-space-4) !important;
+    }
+    /* Remove Ant default underline indicator to avoid duplication */
+    .ant-menu-item::after { display: none !important; }
+
+    /* Tags / Badges */
+    .ant-tag { background: rgba(var(--az-accent-rgb), 0.10); color: var(--az-text-1); border-color: rgba(var(--az-accent-rgb), 0.20); border-radius: var(--az-radius-pill); }
+    .ant-badge-count { background: var(--az-accent); box-shadow: 0 2px 8px rgba(var(--az-accent-rgb), 0.35); }
+
+    /* Progress / Slider */
+    .ant-progress-bg { background: var(--az-accent) !important; }
+    .ant-slider-track { background: var(--az-accent) !important; }
+    .ant-slider-handle { border-color: var(--az-accent) !important; box-shadow: 0 0 0 2px rgba(var(--az-accent-rgb), 0.25);     border-radius: 50% !important; /* 关键：让它变成圆形 */}
+
+    /* Pagination */
+    .ant-pagination-item { border-radius: var(--az-radius-pill); background: var(--az-surface-soft); border-color: var(--az-border); }
+    .ant-pagination-item-active { background: rgba(var(--az-accent-rgb), 0.15); border-color: rgba(var(--az-accent-rgb), 0.35); }
+
+    /* Alerts / Messages */
+    .ant-alert { background: var(--az-surface); border: 1px solid var(--az-border); border-radius: var(--az-radius-sm); }
+
+    /* ------------------------------
+      Markdown & Code
+    ------------------------------ */
+    .markdown { color: var(--az-text-1); }
+    .markdown h1, .markdown h2, .markdown h3, .markdown h4, .markdown h5, .markdown h6 { font-weight: 700; }
+    .markdown p, .markdown li { color: var(--az-text-1); }
+    .markdown strong, .markdown b { color: var(--az-text-1); font-weight: 700; }
+    .markdown em, .markdown i { color: var(--az-text-1); }
+
+    /* Blockquote (Apple Notes-like) */
+    .markdown blockquote {
+      margin: var(--az-space-4) 0;
+      padding: var(--az-space-3) var(--az-space-4);
+      border-left: 3px solid rgba(var(--az-accent-rgb), 0.55);
+      background: var(--az-surface-soft);
+      border-radius: 0 var(--az-radius-md) var(--az-radius-md) 0;
+    }
+
+    /* Code blocks */
+    .markdown pre {
+      position: relative;
+      border-radius: var(--az-code-radius);
+      background: var(--az-code-bg);
+      background-image: var(--az-noise-image);
+      background-size: 4px 4px;
+      background-blend-mode: overlay;
+      box-shadow: var(--az-shadow-sm);
+      /* draw crisp inner stroke above content via ::after to avoid being covered */
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    /* Overlay inner stroke to ensure 4-corner border always visible */
+    .markdown pre::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      box-shadow: inset 0 0 0 var(--az-code-stroke, 0px) var(--az-code-border);
+    }
+    .markdown pre [class^="CodeHeader-"], .markdown pre .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--az-space-2);
+      background: var(--az-code-header-bg);
+      border: 0;
+      /* keep header flush with rounded corners without hiding outer stroke */
+      border-top-left-radius: inherit;
+      border-top-right-radius: inherit;
+      box-shadow: inset 0 -1px 0 var(--az-code-border);
+      padding: var(--az-space-2) var(--az-space-3);
+      color: var(--az-text-2);
+    }
+    .markdown pre code,
+    code,
+    pre { font-family: var(--az-font-family-mono); font-size: 0.925rem; color: var(--az-text-1); }
+
+    /* Comfortable spacing for code blocks inside chat bubbles */
+    .message-content-container .markdown pre { margin: var(--az-space-3) 0; }
+
+    /* Optional: force frameless code everywhere via body class */
+    body.az-frameless-code .markdown pre { --az-code-stroke: 0px !important; }
+
+    /* Tables */
+    .markdown table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--az-surface); border: 1px solid var(--az-border); border-radius: var(--az-radius-md); overflow: hidden; }
+    .markdown th, .markdown td { padding: var(--az-space-3) var(--az-space-4); border-bottom: 1px solid var(--az-border); }
+    .markdown th { background: var(--az-surface-strong); color: var(--az-text-2); text-align: left; font-weight: 600; }
+    .markdown tr:last-child td { border-bottom: none; }
+    .markdown tr:hover td { background: var(--az-surface-soft); }
+    .markdown hr { border: none; height: 1px; background: var(--az-border); margin: var(--az-space-4) 0; }
+
+    /* Lists markers slightly tinted */
+    .markdown ul li::marker, .markdown ol li::marker { color: rgba(var(--az-accent-rgb), 0.7); }
+
+    /* ------------------------------
+      Tooltips / Popovers arrows
+    ------------------------------ */
+    .ant-tooltip .ant-tooltip-arrow::before, .ant-popover .ant-popover-arrow::before { background: var(--az-surface); }
+
+    /* ------------------------------
+      Chat Area Outer Frame
+      Remove the outer border/frame around the conversation area only
+    ------------------------------ */
+    #chat,
+    [class^="MainContainer"],
+    [class^="MainContent"],
+    #content-container {
+      border: 0 !important;
+      box-shadow: none !important; /* remove subtle frame-like shadow */
+    }
+    /* Natural fade-out from message list into input area */
+    #chat { position: relative; }
+  /* Removed: chat-level band; replaced by inputbar-container::before to ensure the blur sits exactly at the input's top edge */
+  /* Bottom fade for message text so it merges naturally into inputbar */
+  #chat::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: calc(var(--az-fade-height) + var(--az-edge-blur-height));
+    pointer-events: none;
+    z-index: 0; /* below the inputbar container (which is lifted) */
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(0,0,0,0.02) 35%,
+      var(--az-fade-color) 100%
+    );
+  }
+    /* kill any thin pseudo-element separators that some builds inject */
+    /* keep #chat::after for the fade-out overlay */
+    #chat::before,
+    [class^="MainContainer"]::before, [class^="MainContainer"]::after,
+    [class^="MainContent"]::before,  [class^="MainContent"]::after,
+    #content-container::before, #content-container::after {
+      display: none !important;
+    }
+
+    /* ------------------------------
+      Chat vs Selector Spacing (no divider line)
+    ------------------------------ */
+    /* Add breathing room below message list area and ensure no bottom divider */
+  #chat [class^="MessageContainer"],
+  #chat [class*="MessageContainer"] {
+    margin-bottom: var(--az-section-gap);
+    border-bottom: 0 !important;
+  }
+    /* Hide any Ant divider line that might appear between sections */
+    #chat .ant-divider { display: none !important; }
+    /* If selector row starts with tags, create top gap above the first tag */
+    #chat .ant-tag:first-child { margin-top: var(--az-section-gap); }
+
+    /* Remove unintended rectangular frames for chat toolbars/utility groups */
+    #chat .ant-card,
+    #chat .ant-card-bordered,
+    #chat .ant-space-compact,
+    #chat .ant-btn-group,
+    #chat [class*="Toolbar"],
+    #chat [class*="ToolBar"],
+    #chat [class*="ToolRow"],
+    #chat [class*="Toolbox"],
+    #chat [class*="ActionBar"],
+    #chat [class*="ActionRow"],
+    #chat [class*="ButtonGroup"],
+    #chat [class*="IconGroup"],
+    #chat [role="group"] {
+      border: 0 !important;
+      outline: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      border-radius: var(--az-radius-lg);
+    }
+
+    /* ------------------------------
+      Density Tuning
+      - Chat + Code: slightly heavier for readability
+      - Model selection/utility panels: slightly lighter
+    ------------------------------ */
+    /* Heavier: chat bubbles */
+    .bubble .message-content-container,
+    .message-assistant .message-content-container,
+    .message-user .message-content-container {
+      background-color: var(--az-surface-strong);
+      border: 1px solid var(--az-border-strong);
+      box-shadow: var(--az-shadow-md);
+    }
+
+    /* Heavier: markdown code blocks */
+    .markdown pre {
+      background: var(--az-surface-strong);
+    }
+    /* Scope framed code to chat area only */
+    #chat .markdown pre { --az-code-stroke: 1px; }
+    .markdown pre [class^="CodeHeader-"],
+    .markdown pre .code-header {
+      background: var(--az-surface-strong);
+      border: 0;
+      box-shadow: inset 0 -1px 0 var(--az-border-strong);
+    }
+
+    /* Lighter: model selection / provider lists / collapses */
+    .ant-collapse { background-color: var(--az-surface) !important; box-shadow: none !important; }
+    .ant-collapse-content,
+    .ant-collapse-header { background: transparent !important; box-shadow: none !important; }
+    /* Remove default collapse outer border and redraw it as an overlay to avoid being covered by inner rounded cards */
+    .ant-collapse { border: 0 !important; position: relative; z-index: 0; border-radius: var(--az-radius-md); }
+    .ant-collapse::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      box-shadow: inset 0 0 0 1px var(--az-border);
+      z-index: 2; /* paint above item backgrounds/corners */
+    }
+
+    .ant-collapse-item{
+      background: var(--az-surface) !important;
+      background-image: var(--az-noise-image);
+      background-size: 4px 4px;
+      background-blend-mode: overlay;
+      backdrop-filter: saturate(var(--az-backdrop-saturate)) blur(var(--az-backdrop-blur));
+      -webkit-backdrop-filter: saturate(var(--az-backdrop-saturate)) blur(var(--az-backdrop-blur));
+      border: 1px solid var(--az-border);
+      box-shadow: var(--az-shadow-md) !important;
+      position: relative;
+      z-index: 1; /* below the overlay stroke on .ant-collapse */
+      border-radius: var(--az-radius-md);
+      overflow: hidden; /* clip inner content to rounded corners */
+    }
+    .ant-collapse-item,
+    .ant-collapse-content {
+      border-color: var(--az-border) !important;
+    }
+    [class^="ProviderListItem"],
+    [class^="TopicListItem"] {
+      background: transparent !important;
+      border: 0 !important;
+      box-shadow: none !important;
+    }
+
+    /* ------------------------------
+      Selector <> Chat gap (work across common containers)
+    ------------------------------ */
+    /* If the main container is flex/grid, gap will create spacing */
+    [class^="Main"], [class^="MainContainer"] {
+      column-gap: var(--az-layout-gap);
+      /* gap: var(--az-layout-gap); */
+    }
+    /* Fallback: margins on each side if gap is ignored */
+    [class^="Sidebar"], .ant-layout-sider { margin-right: var(--az-layout-gap) !important; border-right: 0 !important; box-shadow: none !important; }
+    [class^="MainContent"], .ant-layout-content { margin-left: var(--az-layout-gap) !important; border-left: 0 !important; box-shadow: none !important; }
+
+    /* ------------------------------
+      Input Bar (if present)
+      Apple-like capsule: ring on container, textarea borderless
+    ------------------------------ */
+  #inputbar {
+    background-color: var(--az-surface);
+    background-image: var(--az-noise-image);
+    background-size: 4px 4px;
+    background-blend-mode: overlay;
+    border: 1px solid var(--az-border);
+    border-radius: var(--az-radius-lg);
+    background-clip: padding-box; /* don't paint under the border line */
+    /* subtle inner highlight + soft drop shadow */
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.50),
+      0 6px 16px rgba(0,0,0,0.08),
+      /* soft upward feather to merge with chat fade */
+      0 -14px 28px -16px var(--az-surface);
+    transition: box-shadow var(--az-duration) var(--az-ease), border-color var(--az-duration) var(--az-ease);
+    /* clip inner toolbar/status box so they never overflow rounded capsule */
+    overflow: hidden;
+    position: relative;
+    z-index: 3; /* ensure input sits above chat fade overlay */
+  }
+
+  /* In case implementations wrap the inputbar in a container, lift it too */
+  #chat .inputbar-container {
+    position: relative;
+    z-index: 2147483646; /* lift whole stack so ring shows on all sides */
+    isolation: isolate; /* create a stacking context for predictable z-order */
+  }
+  /* Also support implementations where the input uses a class `.inputbar` directly */
+  #chat .inputbar { position: relative; z-index: 1000; }
+  /* Ensure no outer feather around internal inputs in chat area */
+  #chat .ant-input-affix-wrapper::after { display: none !important; }
+  #chat .inputbar-container .ant-input-affix-wrapper-focused { box-shadow: none !important; }
+  #inputbar *, #inputbar { outline: none !important; }
+  /* Remove abrupt top-only band; full-ring feather handles transitions */
+  #chat .inputbar::before { display: none !important; }
+
+  /* Removed container ring overlay to avoid stacking with the top feather */
+
+  /* Remove top-only overlay; use full-ring feather around the input */
+  #chat .inputbar::after { display: none !important; }
+
+  /* Outer feather ring disabled */
+  #chat .inputbar-container::after { display: none !important; }
+
+  /* Hugging wrap ring removed */
+  #inputbar::before { display: none !important; content: none !important; }
+
+  /* Generic input container (fallback for non-Ant wrappers) */
+  [class^="Container-"] {
+    /* ensure the ring can render outside */
+    position: relative !important;
+    overflow: visible !important;
+    z-index: 10;
+  }
+  /* Outer feather ring disabled for generic containers */
+  [class^="Container-"]::after { display: none !important; }
+
+  /* Remove the old paint-overlay for top fade; progressive fade handled via mask below */
+
+    /* Focus halo on outer capsule only */
+  #inputbar:focus-within {
+      /* keep only subtle structural shadows on focus; halo handled by ::after */
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.55),
+        0 6px 16px rgba(0,0,0,0.10);
+      border-color: rgba(var(--az-accent-rgb), 0.38);
+    }
+
+  /* Remove focus halo to avoid side/bottom corner artifacts */
+  #inputbar:focus-within::after {
+      display: none !important;
+      content: none !important;
+      box-shadow: none !important;
+      animation: none !important;
+  }
+
+  @keyframes azFocusFade {
+    0% { opacity: 0.9; }
+    60% { opacity: 0.35; }
+    100% { opacity: 0; }
+  }
+
+    /* Make the inner textarea clean and borderless inside capsule */
+    .inputbar-container textarea {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: var(--az-space-4) var(--az-space-4);
+    }
+    .inputbar-container textarea:focus { box-shadow: none !important; }
+    .inputbar-container textarea::placeholder { color: var(--az-text-2); opacity: 0.8; }
+
+    /* Beautify the tool row below the input (scoped to container) */
+  .inputbar-container > *:not(#inputbar) {
+    /* no outer frame for the internal toolbar */
+    background-color: transparent;
+    background-image: none;
+    border: 0 !important;
+    border-radius: 0;
+    box-shadow: none;
+    /* Make toolbar row a flex container so the status box can align right */
+    display: flex;
+    align-items: center;
+    gap: var(--az-space-2);
+    padding-right: var(--az-space-3); /* keep safe right inset to avoid visual overflow */
+  }
+
+  /* Make the right-bottom status box softer, rounder and slightly larger */
+  /* Right-bottom status box (assumed as the last item inside the toolbar row) */
+  .inputbar-container > *:not(#inputbar) > *:last-child {
+    margin-left: auto; /* push to the far right of the toolbar row */
+    border-radius: var(--az-radius-lg);
+    /* slightly smaller than before, still safe from overflow */
+    display: inline-flex;
+    align-items: center;
+    gap: var(--az-space-2);
+    overflow: hidden; /* keep inner buttons inside rounded container */
+    box-sizing: border-box;
+    flex-wrap: nowrap;
+    border: 0 !important; /* remove any border/frame on the stats chip */
+    box-shadow: none !important; /* prevent shadow looking like a border */
+  }
+
+  /* Keep internal tool button styles unchanged (no overrides here) */
+
+  /* Intentionally no styling overrides for tool buttons inside toolbar */
+
+    /* ------------------------------
+      Menus / Items Hover & Active
+    ------------------------------ */
+    [class^="Icon"], [class^="ActionButton"], [class^="TopicListItem"], [class^="ProviderListItem"], [class^="MenuItem"], [class^="MenuButton"], [class^="EmojiBackground"] {
+      border-radius: var(--az-radius-sm);
+      transition: border-radius var(--az-duration-fast) var(--az-ease), background var(--az-duration) var(--az-ease);
+    }
+    [class^="Icon"]:hover, [class^="ant"]:hover, [class^="ActionButton"]:hover, [class^="TopicListItem"]:hover, [class^="ProviderListItem"]:hover, [class^="MenuItem"]:hover, [class^="MenuButton"]:hover, [class^="EmojiBackground"]:hover {
+      background: var(--az-surface-soft);
+    }
+    .MessageFooter { margin-left: 0; margin-top: 10px;}
+    [class^="ToolbarWrapper-"] {
+      border: 0 !important;
+    }
+    [class^="CustomCollapseWrapper-"]{
+      margin-top: 10px;
+    }
+
+[class*="SettingGroup-"][class*="CollapsibleSettingGroup-"] [class^="SettingGroup-"]:not([class*="CollapsibleSettingGroup-"]) {
+  border: none !important; /* 建议在特殊情况下使用 !important 确保样式覆盖 */
+  box-shadow: none !important;
+}
+
+    /* ------------------------------
+      Fix: Model cards (Collapse) corners
+      - Remove parent overlay border to avoid white edges covering corners
+      - Keep item glass style, clip to radius; align closer to SettingGroup feel
+    ------------------------------ */
+    .ant-collapse { background: transparent !important; border: 0 !important; overflow: visible; }
+    .ant-collapse::after { display: none !important; }
+    .ant-collapse-content, .ant-collapse-header { background: transparent !important; }
+    .ant-collapse-item {
+      background: var(--az-surface) !important;
+      background-image: var(--az-noise-image);
+      background-size: 4px 4px;
+      background-blend-mode: overlay;
+      backdrop-filter: saturate(var(--az-backdrop-saturate)) blur(var(--az-backdrop-blur));
+      -webkit-backdrop-filter: saturate(var(--az-backdrop-saturate)) blur(var(--az-backdrop-blur));
+      border: 1px solid var(--az-border) !important;
+      border-radius: var(--az-radius-md) !important;
+      background-clip: padding-box; /* prevent background bleeding into border */
+      overflow: hidden; /* clip inner content to rounded corners */
+      box-shadow: var(--az-shadow-md) !important;
+      position: relative;
+      z-index: 1;
+    }
+
+
+
+    /* ------------------------------
+      Utilities
+    ------------------------------ */
+    .shadow-sm { box-shadow: var(--az-shadow-sm) !important; }
+    .shadow-md { box-shadow: var(--az-shadow-md) !important; }
+    .shadow-lg { box-shadow: var(--az-shadow-lg) !important; }
+    .rounded-sm { border-radius: var(--az-radius-sm) !important; }
+    .rounded-md { border-radius: var(--az-radius-md) !important; }
+    .rounded-lg { border-radius: var(--az-radius-lg) !important; }
+    .pill     { border-radius: var(--az-radius-pill) !important; }
+    .kxrFGo{transform: scale(1);
+    filter: blur(5px);}
+
+
+    .ant-table-cell{ left: 20px; }
+    .bBhTwx::after{
+      background: var(--az-accent) !important;
+    }
+    .dQxPJk::after{
+      background: #597da1b2 !important;
+    }
+    /* End of Apple Zen */
