@@ -1,0 +1,444 @@
+@import url("//cdn.bootcdn.net/ajax/libs/lxgw-wenkai-screen-webfont/1.7.0/style.min.css");
+/*-------------------------------------------------------------------------------------  */
+:root {
+    --duration-quick: 0.15s;
+    --duration-normal: 0.3s;
+    --duration-long: 0.5s;
+    --easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+    --easing-decelerate: cubic-bezier(0, 0, 0.2, 1);
+    --easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --easing-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --radius-dynamic: 12px;
+    --radius-large: 12px;
+
+    --color-brand-primary: oklch(65% 0.05 250);
+    --color-brand-hover: color-mix(
+            in oklch,
+            var(--color-brand-primary) 90%,
+            black
+    );
+    --theme-lightness: 1;
+    --shadow-intensity: 0.1;
+    --highlight-intensity: 0.05;
+    --file-line-width: 65rem;
+    --font-default: "LXGW WenKai Screen", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    --background-blur: 12px;
+    --hover-scale: 1.01;
+    --active-scale: 0.98;
+    --card-translate-y: 6px;
+    --chat-text-user: var(--color-text-1);
+
+    /* --- 修改：移除金属拉丝效果 --- */
+    /* 将原来的渐变改为透明，全局禁用拉丝纹理 */
+    --metal-gradient-light: transparent;
+    --metal-gradient-dark: transparent;
+
+    --border-glow: 0 0 5px rgba(255, 255, 255, 0.2);
+}
+/* 深色模式 */
+body[theme-mode="dark"] {
+    --background-image-url: url("https://cfi.ryanvan.com/file/1756685932186_146094-pin_pai-ai_qing-wen_ben-bai_se-3840x2160.jpg");
+    --background-overlay-opacity: 0.5;
+    --color-background: linear-gradient(
+            145deg,
+            rgba(28, 28, 30, 0.6) 0%,
+            rgba(44, 44, 46, 0.6) 100%
+    );
+    --color-background-soft: linear-gradient(
+            145deg,
+            rgba(44, 44, 46, 0.5) 0%,
+            rgba(58, 58, 60, 0.5) 100%
+    );
+    --color-background-mute: linear-gradient(
+            145deg,
+            rgba(72, 72, 74, 0.4) 0%,
+            rgba(99, 99, 102, 0.4) 100%
+    );
+    --navbar-background: linear-gradient(
+            to right,
+            rgba(28, 28, 30, 0.6) 0%,
+            rgba(44, 44, 46, 0.6) 100%
+    );
+    --chat-background-user: linear-gradient(
+            to right,
+            rgba(30, 144, 255, 0.4) 0%,
+            rgba(65, 172, 255, 0.4) 100%
+    );
+    --user-text-color-dark: rgba(255, 255, 255, 0.95);
+    --chat-background-assistant: linear-gradient(
+            to right,
+            rgba(72, 72, 74, 0.4) 0%,
+            rgba(85, 85, 87, 0.4) 100%
+    );
+    --ctp-text: rgba(255, 255, 255, 0.85);
+    --shadow-color: rgba(0, 0, 0, 0.25);
+    --highlight-color: rgba(255, 255, 255, 0.08);
+    --deep-thinking-color: rgba(180, 180, 200, 0.9);
+    --code-bg-dark: rgba(30, 30, 32, 0.7);
+    --footnote-bg-dark: rgba(44, 44, 46, 0.4);
+    --theme-lightness: -1;
+    --shadow-intensity: 0.25;
+    --border-color: rgba(255, 255, 255, 0.1); /* 边框颜色调亮一点 */
+    --border-hover-color: rgba(255, 255, 255, 0.25);
+    --ant-modal-body-background: rgba(30, 30, 30, 0.85);
+}
+/* 浅色模式 */
+body[theme-mode="light"] {
+    --background-image-url: url("https://cfi.ryanvan.com/file/1756685932186_146094-pin_pai-ai_qing-wen_ben-bai_se-3840x2160.jpg");
+    --background-overlay-opacity: 0.25;
+    --color-background: linear-gradient(
+            145deg,
+            rgba(255, 255, 255, 0.3) 0%,
+            rgba(250, 250, 255, 0.3) 100%
+    );
+    --color-background-soft: linear-gradient(
+            145deg,
+            rgba(245, 245, 250, 0.25) 0%,
+            rgba(240, 240, 245, 0.25) 100%
+    );
+    --color-background-mute: linear-gradient(
+            145deg,
+            rgba(235, 235, 240, 0.2) 0%,
+            rgba(230, 230, 235, 0.2) 100%
+    );
+    --navbar-background: linear-gradient(
+            to right,
+            rgba(255, 255, 255, 0.4) 0%,
+            rgba(250, 250, 255, 0.4) 100%
+    );
+    --chat-background-user: linear-gradient(
+            to right,
+            rgba(135, 206, 250, 0.5) 0%,
+            rgba(165, 215, 255, 0.5) 100%
+    );
+    --chat-background-assistant: linear-gradient(
+            to right,
+            rgba(240, 240, 245, 0.4) 0%,
+            rgba(235, 235, 240, 0.4) 100%
+    );
+    --color-white: rgba(255, 255, 255, 0.9);
+    --ctp-text: rgba(30, 30, 30, 0.9);
+    --shadow-color: rgba(0, 0, 0, 0.06);
+    --highlight-color: rgba(255, 255, 255, 0.3);
+    --deep-thinking-color: rgba(80, 80, 100, 0.9);
+    --code-bg-light: rgba(240, 240, 245, 0.4);
+    --footnote-bg-light: rgba(245, 245, 250, 0.3);
+    --theme-lightness: 1;
+    --border-color: rgba(0, 0, 0, 0.08);
+    --border-hover-color: rgba(0, 0, 0, 0.15);
+    --ant-modal-body-background: rgba(255, 255, 255, 0.9);
+}
+*:not(.katex):not(.katex *):not(.iconfont):not(.markdown code):not(.markdown pre) {
+    font-family: var(--font-default);
+    letter-spacing: 0.1em;
+}
+.ant-btn-color-primary {
+    color: var(--color-primary) !important;
+}
+.ant-switch.ant-switch-checked {
+    background: var(--ant-color-primary) !important;
+}
+.ant-switch .ant-switch-handle {
+    top: 0.5px !important;
+}
+
+body {
+    position: relative;
+    background-image: var(--background-image-url);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+body::after {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--color-background);
+    opacity: var(--background-overlay-opacity);
+    -webkit-backdrop-filter: blur(var(--background-blur));
+    backdrop-filter: blur(var(--background-blur));
+    z-index: -1;
+}
+
+/* --- 修改：卡片基础样式 --- */
+.message-content-container {
+    background: var(--color-background-soft) !important; /* 直接使用半透明背景 */
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    border-radius: var(--radius-dynamic);
+    position: relative;
+    z-index: 1;
+    margin-block: 8px;
+    padding: 14px !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    /* --- 新增：为悬浮动效添加过渡 --- */
+    transition: box-shadow var(--duration-normal) var(--easing-standard),
+    transform var(--duration-normal) var(--easing-standard);
+
+    will-change: transform; /* 告诉浏览器为 transform 动画进行优化 */
+}
+
+/* --- 修改：伪元素不再用于拉丝，而是作为纯粹的边框层 --- */
+.message-content-container::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: var(--radius-dynamic);
+    background: transparent; /* 背景改为透明 */
+    opacity: 1; /* 不再需要半透明 */
+    pointer-events: none;
+    z-index: -1;
+    border: 1px solid var(--border-color); /* 边框加粗，更有质感 */
+    transition: border-color var(--duration-normal) var(--easing-standard); /* 过渡效果改为边框颜色 */
+}
+
+/* --- 修改：全新的悬浮效果 --- */
+.message-content-container:hover {
+    transform: translateY(-4px); /* 向上轻微移动，产生悬浮感 */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); /* 阴影加深，更有立体感 */
+}
+
+.message-content-container:hover::before {
+    border-color: var(--border-hover-color); /* 边框颜色提亮 */
+}
+
+@keyframes cardAppear {
+    from {
+        opacity: 0;
+        transform: translateY(var(--card-translate-y));
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+.chat-item {
+    animation: cardAppear var(--duration-normal) var(--easing-decelerate) forwards;
+}
+
+/* --- 以下为其他元素的样式，大部分保持不变 --- */
+
+#inputbar {
+    background: var(--color-background) !important;
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: none;
+    position: relative;
+    border-radius: var(--radius-large);
+    transition: box-shadow var(--duration-normal) var(--easing-standard);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+#inputbar::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: var(--radius-large);
+    background: var(--metal-gradient); /* 已在:root中禁用 */
+    opacity: 0.4;
+    pointer-events: none;
+    z-index: -1;
+    border: 1px solid var(--border-color);
+}
+#inputbar:focus-within::before {
+    opacity: 0.8;
+    border-color: var(--color-brand-primary);
+    box-shadow: var(--border-glow);
+}
+.navbar {
+    background: var(--navbar-background) !important;
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: none;
+    position: relative;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
+    animation: navbarAppear var(--duration-long) var(--easing-standard) forwards;
+}
+.navbar::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background: var(--border-color); /* 使用边框颜色代替拉丝 */
+    opacity: 0.5;
+}
+@keyframes navbarAppear {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+.chat-container {
+    background: transparent !important;
+}
+.chat-item.user .message-content-container {
+    background: var(--chat-background-user) !important;
+    border-left: 3px solid rgba(30, 144, 255, 0.6);
+}
+.chat-item.assistant .message-content-container {
+    background: var(--chat-background-assistant) !important;
+    border-left: 3px solid rgba(255, 182, 193, 0.6);
+}
+body[theme-mode="dark"] .chat-item.user .nickname,
+body[theme-mode="dark"] .chat-item.user .message {
+    color: var(--user-text-color-dark);
+}
+.chat-item .nickname,
+.chat-item .message {
+    color: var(--ctp-text);
+}
+.ant-collapse-content-box .markdown {
+    color: var(--deep-thinking-color);
+    background: var(--color-background-soft) !important;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-top: 8px;
+    border-left: 2px solid rgba(180, 180, 200, 0.3);
+}
+body[theme-mode="dark"] .ant-collapse-content-box .markdown {
+    border-left: 2px solid rgba(180, 180, 200, 0.2);
+}
+.shiki.one-light,
+.shiki.material-theme-darker {
+    background-color: transparent !important;
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+}
+.shiki.one-light::before,
+.shiki.material-theme-darker::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: 6px;
+    background: transparent; /* 移除代码块的拉丝 */
+    pointer-events: none;
+    z-index: -1;
+    border: 1px solid var(--border-color);
+}
+.footnotes {
+    background-color: var(--footnote-bg-light);
+    border-radius: 8px;
+    position: relative;
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+}
+.footnotes::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: 8px;
+    background: transparent; /* 移除引用块的拉丝 */
+    pointer-events: none;
+    z-index: -1;
+    border: 1px solid var(--border-color);
+}
+body[theme-mode="dark"] .footnotes {
+    background-color: var(--footnote-bg-dark);
+}
+#inputbar textarea.ant-input {
+    height: 110px !important;
+    padding: 10px;
+}
+button,
+.ant-btn {
+    border-radius: 6px;
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    transition: background-color var(--duration-quick) var(--easing-standard);
+    position: relative;
+    overflow: hidden;
+    background: var(--color-background-mute) !important;
+    border: 1px solid var(--border-color) !important;
+}
+button::before,
+.ant-btn::before {
+    content: none; /* 移除按钮的拉丝伪元素 */
+}
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+body[theme-mode="dark"] ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.25);
+}
+body[theme-mode="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+body {
+    animation: fadeIn 0.8s var(--easing-decelerate) forwards;
+}
+.message-content-container .markdown {
+    opacity: 0;
+    animation: fadeIn 0.4s var(--easing-decelerate) 0.1s forwards;
+}
+a {
+    color: var(--color-brand-primary);
+    transition: color var(--duration-quick) var(--easing-standard);
+}
+a:hover {
+    color: var(--color-brand-hover);
+}
+::selection {
+    background-color: color-mix(
+            in srgb,
+            var(--color-brand-primary),
+            transparent 70%
+    );
+}
+.theme-toggle-button {
+    transition: opacity var(--duration-normal) var(--easing-emphasized);
+}
+.theme-toggle-button:hover {
+    opacity: 0.8;
+}
+.ant-modal-body {
+    background: var(--ant-modal-body-background);
+}
+body[theme-mode="light"] .ant-tooltip {
+    --antd-arrow-background-color: rgb(255 255 255 / 95%) !important;
+}
+body[theme-mode="light"] .ant-tooltip .ant-tooltip-content .ant-tooltip-inner {
+    color: #000 !important;
+    background-color: rgb(255 255 255 / 95%) !important;
+}
+pre div[class^="CodeContent"] {
+    border-radius: 6px !important;
+}
+body[theme-mode="light"] pre div[class^="CodeContent"] {
+    background-color: var(--code-bg-light) !important;
+}
+body[theme-mode="dark"] pre div[class^="CodeContent"] {
+    background-color: var(--code-bg-dark) !important;
+}
