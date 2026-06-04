@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         质感字体
 // @namespace    empty
-// @version      0.14
+// @version      0.16
 // @description  让每个页面的字体变得有质感，页面滚动更平滑，字体换为系统优选字体并添加字体阴影
 // @author       cherishding
 // @match        *://*/*
@@ -12,6 +12,9 @@
 // @grant        GM_getValue
 // ==/UserScript==
 
+// v0.15 (2026-06) 调整:
+//   [体验] 平滑滚动改为目标位置缓动，降低滚动幅度，接近 macOS 网页滚动手感
+//
 // v0.14 (2026-06) 修复:
 //   [修复] 兼容 Firefox deltaMode（行单位 vs 像素单位）
 //   [修复] 速度上限防止页面飞出
@@ -44,13 +47,13 @@
     GM_addStyle("html { scroll-behavior: auto; }");
 
     (function initSmoothScroll() {
-      const SCROLL_SPEED = 1.2;
-      const DAMPING = 0.92;
-      const MIN_VELOCITY = 0.5;
-      const MAX_VELOCITY = 150;     // 速度上限（px/帧），防止飞出
-      const WHEEL_TIMEOUT = 200;     // 两次滚轮间隔超过此值重置速度（ms）
+      const SCROLL_SCALE = 0.45;     // 降低单次滚轮位移，接近 macOS 网页滚动幅度
+      const EASING = 0.18;           // 越小越柔和，越大越跟手
+      const MIN_DISTANCE = 0.5;
+      const MAX_WHEEL_DELTA = 120;   // 单次 wheel 限幅，避免高 delta 设备滚动过猛
+      const WHEEL_TIMEOUT = 180;     // 两次滚轮间隔超过此值重置目标位置（ms）
 
-      let velocity = 0;
+      let targetScrollTop = 0;
       let animating = false;
       let lastWheelTime = 0;
 
@@ -109,22 +112,25 @@
 
       startResizeTracking();
 
+      function clampScrollTop(value, target) {
+        const maxScroll = target.scrollHeight - target.clientHeight;
+        if (value < 0) return 0;
+        if (value > maxScroll) return maxScroll;
+        return value;
+      }
+
       function animate() {
-        if (Math.abs(velocity) < MIN_VELOCITY) {
+        const target = getScrollTarget();
+        targetScrollTop = clampScrollTop(targetScrollTop, target);
+
+        const distance = targetScrollTop - target.scrollTop;
+        if (Math.abs(distance) < MIN_DISTANCE) {
+          target.scrollTop = targetScrollTop;
           animating = false;
-          velocity = 0;
           return;
         }
 
-        const target = getScrollTarget();
-        const maxScroll = target.scrollHeight - target.clientHeight;
-        let next = target.scrollTop + velocity;
-
-        if (next < 0) next = 0;
-        if (next > maxScroll) next = maxScroll;
-
-        target.scrollTop = next;
-        velocity *= DAMPING;
+        target.scrollTop += distance * EASING;
 
         requestAnimationFrame(animate);
       }
@@ -139,6 +145,8 @@
         let delta = e.deltaY;
         if (e.deltaMode === 1) delta *= 40;      // 行 → 像素
         else if (e.deltaMode === 2) delta *= 800; // 页 → 像素
+        if (delta > MAX_WHEEL_DELTA) return MAX_WHEEL_DELTA;
+        if (delta < -MAX_WHEEL_DELTA) return -MAX_WHEEL_DELTA;
         return delta;
       }
 
@@ -208,15 +216,14 @@
 
         const now = performance.now();
         if (now - lastWheelTime > WHEEL_TIMEOUT) {
-          velocity = 0;
+          targetScrollTop = target.scrollTop;
         }
         lastWheelTime = now;
 
-        velocity += normalizeDelta(e) * SCROLL_SPEED;
-
-        // 速度钳位
-        if (velocity > MAX_VELOCITY) velocity = MAX_VELOCITY;
-        if (velocity < -MAX_VELOCITY) velocity = -MAX_VELOCITY;
+        targetScrollTop = clampScrollTop(
+          targetScrollTop + normalizeDelta(e) * SCROLL_SCALE,
+          target
+        );
 
         if (!animating) {
           animating = true;
@@ -243,7 +250,7 @@
       window.addEventListener("pagehide", () => {
         stopWheelTracking();
         stopResizeTracking();
-        velocity = 0;
+        targetScrollTop = 0;
         animating = false;
       });
 
