@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         质感字体
 // @namespace    empty
-// @version      0.16
-// @description  让每个页面的字体变得有质感，页面滚动更平滑，字体换为系统优选字体并添加字体阴影
+// @version      0.17
+// @description  让每个页面的字体变得有质感，字体换为系统优选字体并添加字体阴影
 // @author       cherishding
 // @match        *://*/*
 // @run-at       document-start
@@ -12,17 +12,8 @@
 // @grant        GM_getValue
 // ==/UserScript==
 
-// v0.15 (2026-06) 调整:
-//   [体验] 平滑滚动改为目标位置缓动，降低滚动幅度，接近 macOS 网页滚动手感
-//
-// v0.14 (2026-06) 修复:
-//   [修复] 兼容 Firefox deltaMode（行单位 vs 像素单位）
-//   [修复] 速度上限防止页面飞出
-//   [修复] 缓存滚动目标避免每帧强制回流
-//   [修复] 对话框 CSS 不再重复注入
-//   [修复] 优化 wheel handler 中的可滚动容器查找
-//   [修复] MutationObserver 仅监听 document.head
-//   [修复] 细节：分号、class 选择器
+// v0.17 (2026-06) 调整:
+//   [移除] 移除平滑滚动功能，仅保留字体渲染
 
 (function () {
   "use strict";
@@ -39,229 +30,6 @@
   }
 
   const shadow_r = normalizeShadow(GM_getValue("shadow_r", 3));
-  const smoothscroll = GM_getValue("smoothscroll", true);
-
-  // ======================== 内联平滑滚动 ========================
-
-  if (smoothscroll) {
-    GM_addStyle("html { scroll-behavior: auto; }");
-
-    (function initSmoothScroll() {
-      const SCROLL_SCALE = 0.45;     // 降低单次滚轮位移，接近 macOS 网页滚动幅度
-      const EASING = 0.18;           // 越小越柔和，越大越跟手
-      const MIN_DISTANCE = 0.5;
-      const MAX_WHEEL_DELTA = 120;   // 单次 wheel 限幅，避免高 delta 设备滚动过猛
-      const WHEEL_TIMEOUT = 180;     // 两次滚轮间隔超过此值重置目标位置（ms）
-
-      let targetScrollTop = 0;
-      let animating = false;
-      let lastWheelTime = 0;
-
-      // 缓存滚动目标，避免每帧读 scrollHeight 强制回流
-      let cachedTarget = null;
-      let cacheExpiry = 0;
-      const CACHE_TTL = 500; // 缓存有效期（ms）
-      let cachedWheelTarget = null;
-      let cachedScrollableAncestor = null;
-      let wheelCacheExpiry = 0;
-      const WHEEL_TARGET_CACHE_TTL = 150; // wheel 事件短时间内通常来自同一目标
-
-      function getScrollTarget() {
-        const now = performance.now();
-        if (cachedTarget && now < cacheExpiry) return cachedTarget;
-
-        cachedTarget = document.scrollingElement || document.documentElement;
-        cacheExpiry = now + CACHE_TTL;
-        return cachedTarget;
-      }
-
-      function invalidateCache() {
-        cachedTarget = null;
-        cachedWheelTarget = null;
-        cachedScrollableAncestor = null;
-      }
-
-      function invalidateScrollTarget() {
-        cachedTarget = null;
-      }
-
-      // 内容变化可能导致可滚动容器改变
-      let resizeObserver = null;
-      let resizeListening = false;
-
-      function startResizeTracking() {
-        if ("ResizeObserver" in window) {
-          if (!resizeObserver) {
-            resizeObserver = new ResizeObserver(invalidateCache);
-          }
-          resizeObserver.observe(document.documentElement);
-        } else if (!resizeListening) {
-          window.addEventListener("resize", invalidateCache);
-          resizeListening = true;
-        }
-      }
-
-      function stopResizeTracking() {
-        if (resizeObserver) resizeObserver.disconnect();
-        if (resizeListening) {
-          window.removeEventListener("resize", invalidateCache);
-          resizeListening = false;
-        }
-        invalidateCache();
-      }
-
-      startResizeTracking();
-
-      function clampScrollTop(value, target) {
-        const maxScroll = target.scrollHeight - target.clientHeight;
-        if (value < 0) return 0;
-        if (value > maxScroll) return maxScroll;
-        return value;
-      }
-
-      function animate() {
-        const target = getScrollTarget();
-        targetScrollTop = clampScrollTop(targetScrollTop, target);
-
-        const distance = targetScrollTop - target.scrollTop;
-        if (Math.abs(distance) < MIN_DISTANCE) {
-          target.scrollTop = targetScrollTop;
-          animating = false;
-          return;
-        }
-
-        target.scrollTop += distance * EASING;
-
-        requestAnimationFrame(animate);
-      }
-
-      /**
-       * 将 deltaY 标准化为像素单位
-       * Chrome: deltaMode=0, 单位是像素
-       * Firefox: deltaMode=1, 单位是行（约 40px/行）
-       * 极少数: deltaMode=2, 单位是页
-       */
-      function normalizeDelta(e) {
-        let delta = e.deltaY;
-        if (e.deltaMode === 1) delta *= 40;      // 行 → 像素
-        else if (e.deltaMode === 2) delta *= 800; // 页 → 像素
-        if (delta > MAX_WHEEL_DELTA) return MAX_WHEEL_DELTA;
-        if (delta < -MAX_WHEEL_DELTA) return -MAX_WHEEL_DELTA;
-        return delta;
-      }
-
-      /**
-       * 检查元素是否是可独立滚动的容器
-       * 快速路径：先读 overflowY，再判断滚动能力
-       */
-      function findScrollableAncestor(el) {
-        if (el && el.nodeType !== Node.ELEMENT_NODE) {
-          el = el.parentElement;
-        }
-
-        const now = performance.now();
-        if (el === cachedWheelTarget && now < wheelCacheExpiry) {
-          return cachedScrollableAncestor;
-        }
-
-        const originalEl = el;
-        let scrollable = null;
-        while (el && el !== document.documentElement && el !== document.body) {
-          // overflowY 只在元素可滚动时才值得读
-          const ovY = el.style.overflowY || "";
-          // 快速排除明显不可滚动的情况
-          if (
-            ovY !== "hidden" &&
-            ovY !== "visible" &&
-            el.scrollHeight > el.clientHeight
-          ) {
-            // 需要精确值时再读 computedStyle
-            const computed = getComputedStyle(el).overflowY;
-            if (computed === "auto" || computed === "scroll") {
-              scrollable = el;
-              break;
-            }
-          }
-          el = el.parentElement;
-        }
-
-        cachedWheelTarget = originalEl;
-        cachedScrollableAncestor = scrollable;
-        wheelCacheExpiry = now + WHEEL_TARGET_CACHE_TTL;
-        return scrollable;
-      }
-
-      function onWheel(e) {
-        if (e.defaultPrevented) return;
-
-        // 保留浏览器缩放和触控板 pinch 手势
-        if (e.ctrlKey || e.metaKey) return;
-        if (e.deltaY === 0) return;
-
-        // 查找可滚动的子容器
-        const scrollable = findScrollableAncestor(e.target);
-        if (scrollable) {
-          const atTop = scrollable.scrollTop <= 0 && e.deltaY < 0;
-          const atBottom =
-            scrollable.scrollTop + scrollable.clientHeight >=
-              scrollable.scrollHeight - 1 && e.deltaY > 0;
-          // 子容器还能滚动，不接管
-          if (!atTop && !atBottom) return;
-        }
-
-        const target = getScrollTarget();
-        if (target.scrollHeight <= target.clientHeight) return;
-
-        e.preventDefault();
-
-        const now = performance.now();
-        if (now - lastWheelTime > WHEEL_TIMEOUT) {
-          targetScrollTop = target.scrollTop;
-        }
-        lastWheelTime = now;
-
-        targetScrollTop = clampScrollTop(
-          targetScrollTop + normalizeDelta(e) * SCROLL_SCALE,
-          target
-        );
-
-        if (!animating) {
-          animating = true;
-          // 开始动画前刷新缓存目标
-          invalidateScrollTarget();
-          requestAnimationFrame(animate);
-        }
-      }
-
-      let wheelListening = false;
-
-      function startWheelTracking() {
-        if (wheelListening) return;
-        window.addEventListener("wheel", onWheel, { passive: false });
-        wheelListening = true;
-      }
-
-      function stopWheelTracking() {
-        if (!wheelListening) return;
-        window.removeEventListener("wheel", onWheel);
-        wheelListening = false;
-      }
-
-      window.addEventListener("pagehide", () => {
-        stopWheelTracking();
-        stopResizeTracking();
-        targetScrollTop = 0;
-        animating = false;
-      });
-
-      window.addEventListener("pageshow", () => {
-        startResizeTracking();
-        startWheelTracking();
-      });
-
-      startWheelTracking();
-    })();
-  }
 
   // ======================== 质感字体样式 ========================
 
@@ -402,40 +170,6 @@
         font-size: 14px;
         min-width: 70px;
       }
-      .zg-hint {
-        font-size: 11px;
-        color: #999;
-      }
-      .zg-switch {
-        appearance: none;
-        -webkit-appearance: none;
-        width: 44px;
-        height: 24px;
-        border-radius: 12px;
-        background: #ccc;
-        position: relative;
-        cursor: pointer;
-        transition: background 0.25s;
-        flex-shrink: 0;
-      }
-      .zg-switch::before {
-        content: '';
-        position: absolute;
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background: #fff;
-        top: 2px;
-        left: 2px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-        transition: transform 0.25s;
-      }
-      .zg-switch:checked {
-        background: #4caf50;
-      }
-      .zg-switch:checked::before {
-        transform: translateX(20px);
-      }
       .zg-range {
         appearance: none;
         -webkit-appearance: none;
@@ -564,16 +298,10 @@
       }
     }
 
-    const currentSmooth = GM_getValue("smoothscroll", true);
     const currentShadow = normalizeShadow(GM_getValue("shadow_r", 3));
 
     dialog.innerHTML = `
       <div class="zg-dialog-body">
-        <div class="zg-row">
-          <span class="zg-label">平滑滚动</span>
-          <input type="checkbox" class="zg-switch" id="zg-smooth" ${currentSmooth ? "checked" : ""}>
-          <span class="zg-hint">刷新后生效</span>
-        </div>
         <div class="zg-row">
           <span class="zg-label">阴影</span>
           <input type="range" class="zg-range" id="zg-shadow" min="0" max="15" step="0.5" value="${currentShadow}">
@@ -604,7 +332,6 @@
 
     const rangeInput = dialog.querySelector("#zg-shadow");
     const previewSpan = dialog.querySelector("#zg-preview");
-    const smoothInput = dialog.querySelector("#zg-smooth");
 
     rangeInput.addEventListener("input", () => {
       const val = parseFloat(rangeInput.value);
@@ -620,7 +347,6 @@
     });
 
     dialog.querySelector("#zg-save").addEventListener("click", () => {
-      GM_setValue("smoothscroll", smoothInput.checked);
       GM_setValue("shadow_r", normalizeShadow(rangeInput.value));
       closeDialog();
     });
