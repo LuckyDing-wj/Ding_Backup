@@ -32,7 +32,6 @@ const _foreignIpDns = "8.8.8.8;94.140.14.14";
  * false = 禁用
  */
 
-
 const args = {
   enable: true,
   ruleSet: "ads", // 支持 'all' 或 'openai,youtube,ads' 这种格式
@@ -190,6 +189,8 @@ const rules = [
   "DOMAIN-SUFFIX,ionewu.com,直连",
   "DOMAIN-SUFFIX,vicp.net,直连",
   "DOMAIN-SUFFIX,h-e.top,直连",
+  "DOMAIN-SUFFIX,hybgzs.com,直连",
+  "DOMAIN-SUFFIX,sharedchat.cc,直连",
 ];
 
 // 地区定义 (Icons 更新为 GitHub Raw)
@@ -818,7 +819,14 @@ function main(config) {
       ...groupBaseOption,
       name: "下载软件",
       type: "select",
-      proxies: ["直连", "REJECT", "所有节点", "默认节点", "国内网站", ...regionGroupNames],
+      proxies: [
+        "直连",
+        "REJECT",
+        "所有节点",
+        "默认节点",
+        "国内网站",
+        ...regionGroupNames,
+      ],
       icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Download.png",
     },
     {
