@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         微信读书-增强
 // @namespace    http://tampermonkey.net/
-// @version      2.0
+// @version      2.1
 // @description  微信读书增强功能：自定义主题、宽度调节、自动滚动、自动翻页
 // @author       优化版
 // @match        https://weread.qq.com/web/reader/*
