@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         质感字体
 // @namespace    empty
-// @version      0.19
+// @version      0.20
 // @description  让每个页面的字体变得有质感，字体换为系统优选字体
 // @author       cherishding
 // @match        *://*/*
@@ -9,6 +9,8 @@
 // @grant        GM_addStyle
 // ==/UserScript==
 
+// v0.20 (2026-06) 调整:
+//   [新增] 添加网站排除列表，可跳过指定网站
 // v0.19 (2026-06) 调整:
 //   [移除] 移除字体阴影功能，仅保留质感字体
 // v0.18 (2026-06) 调整:
@@ -18,6 +20,27 @@
 
 (function () {
   "use strict";
+
+  // ======================== 网站排除列表 ========================
+  // 在以下网站中，脚本不会生效（支持子域名匹配）
+  const EXCLUDE_SITES = [
+    // 'example.com',        // 示例：排除整个 example.com 域名
+    // 'dribbble.com',       // 设计类网站
+    // 'behance.net',        // 设计类网站
+    // 'figma.com',          // 设计工具
+    // 'fonts.google.com',   // 字体预览网站
+  ];
+
+  // 检查当前网站是否在排除列表中
+  const currentHostname = location.hostname.toLowerCase();
+  const isExcluded = EXCLUDE_SITES.some(site =>
+    currentHostname === site || currentHostname.endsWith('.' + site)
+  );
+
+  if (isExcluded) {
+    console.log('[质感字体] 当前网站在排除列表中，脚本已跳过');
+    return;
+  }
 
   // ======================== 质感字体样式 ========================
 
