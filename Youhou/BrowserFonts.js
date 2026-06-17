@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         质感字体
 // @namespace    empty
-// @version      0.17
+// @version      0.18
 // @description  让每个页面的字体变得有质感，字体换为系统优选字体并添加字体阴影
 // @author       cherishding
 // @match        *://*/*
@@ -12,6 +12,8 @@
 // @grant        GM_getValue
 // ==/UserScript==
 
+// v0.18 (2026-06) 调整:
+//   [优化] 阴影调节力度降低(0-5,步长0.1),弹框宽度增加至400px
 // v0.17 (2026-06) 调整:
 //   [移除] 移除平滑滚动功能，仅保留字体渲染
 
@@ -19,7 +21,7 @@
   "use strict";
 
   const MIN_SHADOW = 0;
-  const MAX_SHADOW = 15;
+  const MAX_SHADOW = 5;
 
   function normalizeShadow(value) {
     const shadow = Number.parseFloat(value);
@@ -152,7 +154,7 @@
         to   { transform: translateY(0);     opacity: 1; }
       }
       .zg-dialog-body {
-        width: 300px;
+        width: 400px;
         padding: 20px;
         font-family: var(--zg-font);
         color: #333;
@@ -208,6 +210,8 @@
         border-radius: 4px;
         background: #f5f5f5;
         white-space: nowrap;
+        min-width: 80px;
+        text-align: center;
       }
       .zg-btn-row {
         display: flex;
@@ -304,7 +308,7 @@
       <div class="zg-dialog-body">
         <div class="zg-row">
           <span class="zg-label">阴影</span>
-          <input type="range" class="zg-range" id="zg-shadow" min="0" max="15" step="0.5" value="${currentShadow}">
+          <input type="range" class="zg-range" id="zg-shadow" min="0" max="5" step="0.1" value="${currentShadow}">
           <span class="zg-preview" id="zg-preview" style="text-shadow: 1px 1px ${currentShadow}px #c3c3c3">效果预览</span>
         </div>
         <div class="zg-btn-row">
