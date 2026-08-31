@@ -1,2 +1,5 @@
 .idea
 .omc
+.claude
+__pycache__/
+Backup/mihomo_work/
