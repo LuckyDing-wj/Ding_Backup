@@ -1,19 +1,28 @@
 // ==UserScript==
 // @name              Linux.do 论坛精简
 // @namespace         https://linux.do/
-// @version           1.2.9
+// @version           1.3.4
 // @description       优化 linux.do 论坛体验: 隐藏侧边栏/列表摘要/相关主题推荐/弹窗横幅
 // @match             https://linux.do/*
 // @run-at            document-start
 // @grant             GM_getValue
 // @grant             GM_setValue
 // @grant             GM_registerMenuCommand
+// @grant             GM_unregisterMenuCommand
 // ==/UserScript==
 
 (function () {
     'use strict';
 
     var STYLE_ID = 'ldc-style';
+    var BG_ID = 'ldc-bg';
+    var BG_CSS_ID = 'ldc-bg-css';
+
+    /*
+     * 新标签逻辑跳过的协议:
+     * 邮件/脚本/数据/电话链接保持浏览器默认行为。
+     */
+    var SKIP_PROTOCOLS = /^(mailto|javascript|data|tel):/i;
 
     /*
      * 弹窗关键词: 模态框文本命中即自动关闭。
@@ -246,6 +255,16 @@
     ].join('\n');
 
     var util = {
+        getValue: function (name, defaultValue) {
+            var value = GM_getValue(name);
+
+            if (value === undefined) {
+                return defaultValue;
+            }
+
+            return value;
+        },
+
         addStyle: function (id, css) {
             var style = document.getElementById(id);
             if (!style) {
@@ -420,9 +439,18 @@
             for (var i = 0; i < links.length; i++) {
                 var href = links[i].getAttribute('href');
 
-                if (href && href.charAt(0) !== '#') {
+                if (href && href.charAt(0) !== '#' &&
+                    !SKIP_PROTOCOLS.test(href)) {
                     links[i].target = '_blank';
-                    links[i].rel = 'noopener';
+
+                    /*
+                     * relList.add 保留原有 nofollow/ugc 等值。
+                     */
+                    if (links[i].relList) {
+                        links[i].relList.add('noopener');
+                    } else {
+                        links[i].rel = 'noopener';
+                    }
                 }
             }
         },
@@ -462,7 +490,8 @@
 
             var href = link.getAttribute('href');
 
-            if (!href || href.charAt(0) === '#') {
+            if (!href || href.charAt(0) === '#' ||
+                SKIP_PROTOCOLS.test(href)) {
                 return;
             }
 
@@ -510,36 +539,244 @@
                 var modal = modals[i];
 
                 /*
-                 * 只处理可见的模态框。
+                 * 可见性用 computed style 判断,
+                 * 内联/class 两种隐藏方式均覆盖。
                  */
-                if (modal.style.display === 'none' ||
-                    modal.hasAttribute('data-ldc-closed')) {
+                var cs = document.defaultView.getComputedStyle(modal);
+
+                if (cs.display === 'none' ||
+                    cs.visibility === 'hidden') {
                     continue;
                 }
 
-                if (this.matchModal(modal)) {
-                    /*
-                     * 标记后模拟点击关闭按钮, 让 Ember 状态机
-                     * 真正走关闭流程, 节点得以销毁, 不残留。
-                     */
-                    modal.setAttribute('data-ldc-closed', '1');
+                if (!this.matchModal(modal)) {
+                    continue;
+                }
 
-                    var closer = modal.querySelector(
-                        '.modal-close, ' +
-                        'button[data-dismiss="modal"], ' +
-                        '.d-modal__dismiss'
-                    );
+                /*
+                 * 标记打在内容节点上: 现代模态框 (.d-modal)
+                 * 关闭即销毁, 标记随之消失; 遗留常驻容器
+                 * (#discourse-modal) 则标记其当前内容子节点,
+                 * 容器复用时装载的新内容不带旧标记。
+                 */
+                var target = modal.id === 'discourse-modal' ?
+                    modal.firstElementChild :
+                    modal;
 
-                    if (closer) {
-                        closer.click();
-                    } else {
-                        document.dispatchEvent(new KeyboardEvent(
-                            'keydown',
-                            { key: 'Escape', keyCode: 27, bubbles: true }
-                        ));
-                    }
+                if (!target ||
+                    target.hasAttribute('data-ldc-closed')) {
+                    continue;
+                }
+
+                target.setAttribute('data-ldc-closed', '1');
+
+                var closer = modal.querySelector(
+                    '.modal-close, ' +
+                    'button[data-dismiss="modal"], ' +
+                    '.d-modal__dismiss'
+                );
+
+                if (closer) {
+                    closer.click();
+                } else {
+                    document.dispatchEvent(new KeyboardEvent(
+                        'keydown',
+                        { key: 'Escape', keyCode: 27, bubbles: true }
+                    ));
                 }
             }
+        },
+
+        /*
+         * ---- 网页背景图 ----
+         * fixed 定位背景层 z-index:-1, 模糊打在背景层上
+         * (GPU 缓存, 不随内容滚动重算, 性能损耗可忽略)。
+         */
+        isBgEnabled: function () {
+            return util.getValue('bg_enabled', false) === true;
+        },
+
+        applyBackground: function () {
+            var enabled = this.isBgEnabled();
+            var url = util.getValue('bg_url', '');
+            var blur = Number(util.getValue('bg_blur', 0)) || 0;
+            var el = document.getElementById(BG_ID);
+            var css = document.getElementById(BG_CSS_ID);
+
+            if (!enabled || !url) {
+                if (el) {
+                    el.remove();
+                }
+                if (css) {
+                    css.remove();
+                }
+                return;
+            }
+
+            /*
+             * 让 html/body 及主要内容容器背景透明,
+             * 列表/帖子区域透出背景图。
+             * 模态框、下拉菜单保持不透明, 保证可读。
+             */
+            util.addStyle(
+                BG_CSS_ID,
+                [
+                    'html, body { background: transparent !important; }',
+                    '',
+                    '#main-outlet, #main-outlet-wrapper, .wrap,',
+                    '.topic-area, .post-stream, .topic-list,',
+                    '.topic-list .topic-list-item, .topic-list td,',
+                    '.topic-body, .topic-post, .contents,',
+                    '.d-header, .d-header-wrap,',
+                    '#d-sidebar, .sidebar-wrapper, .sidebar-container {',
+                    '    background: transparent !important;',
+                    '}',
+                    '',
+                    '.d-modal, .d-modal__container,',
+                    '.fk-d-menu, .d-header-dropdown,',
+                    '.select-kit-body, .menu-panel {',
+                    '    background-color: var(--secondary) !important;',
+                    '}'
+                ].join('\n')
+            );
+
+            if (!el) {
+                el = document.createElement('div');
+                el.id = BG_ID;
+                el.style.cssText =
+                    'position:fixed;inset:0;z-index:-1;' +
+                    'pointer-events:none;background-size:cover;' +
+                    'background-position:center;background-repeat:no-repeat;';
+                (document.body || document.documentElement)
+                    .appendChild(el);
+            }
+
+            /*
+             * 多重背景: 前层 30% 暗色遮罩保证文字可读。
+             */
+            el.style.backgroundImage =
+                'linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), ' +
+                'url("' + url + '")';
+
+            /*
+             * 模糊边缘泛白用轻微放大抵消。
+             */
+            el.style.filter =
+                blur > 0 ? 'blur(' + blur + 'px)' : 'none';
+            el.style.transform =
+                blur > 0 ? 'scale(1.06)' : 'none';
+        },
+
+        toggleBg: function () {
+            GM_setValue('bg_enabled', !this.isBgEnabled());
+            this.applyBackground();
+        },
+
+        promptBgUrl: function () {
+            var url = prompt(
+                '输入图片 URL (https:// 开头)',
+                util.getValue('bg_url', '')
+            );
+
+            if (url === null) {
+                return;
+            }
+
+            url = url.trim();
+
+            if (!/^https:\/\//i.test(url)) {
+                if (url) {
+                    alert('仅支持 https:// 开头的图片地址');
+                }
+                return;
+            }
+
+            GM_setValue('bg_url', url);
+            GM_setValue('bg_enabled', true);
+            this.applyBackground();
+        },
+
+        /*
+         * 本地图片: 选择一次即转 base64 入库。
+         * canvas 缩到最长 1920px + JPEG 压缩, 控制存储体积。
+         */
+        pickLocalImage: function () {
+            var self = this;
+            var input = document.createElement('input');
+
+            input.type = 'file';
+            input.accept = 'image/*';
+
+            input.onchange = function () {
+                var file = input.files && input.files[0];
+
+                if (!file) {
+                    return;
+                }
+
+                var reader = new FileReader();
+
+                reader.onload = function () {
+                    var img = new Image();
+
+                    img.onload = function () {
+                        var max = 1920;
+                        var scale = Math.min(
+                            1,
+                            max / Math.max(img.width, img.height)
+                        );
+                        var canvas = document.createElement('canvas');
+
+                        canvas.width = Math.round(img.width * scale);
+                        canvas.height = Math.round(img.height * scale);
+                        canvas.getContext('2d').drawImage(
+                            img, 0, 0, canvas.width, canvas.height
+                        );
+
+                        GM_setValue(
+                            'bg_url',
+                            canvas.toDataURL('image/jpeg', 0.85)
+                        );
+                        GM_setValue('bg_enabled', true);
+                        self.applyBackground();
+                    };
+
+                    img.src = reader.result;
+                };
+
+                reader.readAsDataURL(file);
+            };
+
+            input.click();
+        },
+
+        setBgBlur: function () {
+            var raw = prompt(
+                '模糊度 0-30 (像素)',
+                util.getValue('bg_blur', 0)
+            );
+
+            if (raw === null) {
+                return;
+            }
+
+            var blur = Number(raw);
+
+            if (!isFinite(blur) || blur < 0) {
+                blur = 0;
+            }
+            if (blur > 30) {
+                blur = 30;
+            }
+
+            GM_setValue('bg_blur', blur);
+            this.applyBackground();
+        },
+
+        clearBackground: function () {
+            GM_setValue('bg_url', '');
+            GM_setValue('bg_enabled', false);
+            this.applyBackground();
         },
 
         registerMenu: function () {
@@ -553,6 +790,44 @@
                 GM_setValue('ldc_disabled', self.isEnabled());
                 location.reload();
             });
+
+            /*
+             * 背景功能独立于精简开关, 始终可用。
+             * 切换后重注册菜单, 标签实时反映状态。
+             */
+            var bgMenuId = null;
+
+            var updateBgMenu = function () {
+                if (bgMenuId !== null && GM_unregisterMenuCommand) {
+                    GM_unregisterMenuCommand(bgMenuId);
+                }
+
+                bgMenuId = GM_registerMenuCommand(
+                    self.isBgEnabled() ? '🖼️ 背景: 开' : '🖼️ 背景: 关',
+                    function () {
+                        self.toggleBg();
+                        updateBgMenu();
+                    }
+                );
+            };
+
+            updateBgMenu();
+
+            GM_registerMenuCommand('🔗 设置图片 URL', function () {
+                self.promptBgUrl();
+            });
+
+            GM_registerMenuCommand('📁 选择本地图片', function () {
+                self.pickLocalImage();
+            });
+
+            GM_registerMenuCommand('🌫️ 调节模糊度', function () {
+                self.setBgBlur();
+            });
+
+            GM_registerMenuCommand('🗑️ 清除背景', function () {
+                self.clearBackground();
+            });
         },
 
         init: function () {
@@ -563,25 +838,28 @@
              */
             this.registerMenu();
 
-            if (!this.isEnabled()) {
-                return;
+            if (this.isEnabled()) {
+                util.waitForHead(function () {
+                    util.addStyle(STYLE_ID, CSS);
+                });
             }
 
-            util.waitForHead(function () {
-                util.addStyle(STYLE_ID, CSS);
-            });
-
             /*
-             * body 在 document-start 早期可能未就绪。
+             * body 就绪后: 背景无条件应用;
+             * 弹窗观察仅在精简开启时挂载。
              */
-            var startModal = function () {
+            var start = function () {
                 if (document.body) {
-                    self.observeModals();
+                    self.applyBackground();
+
+                    if (self.isEnabled()) {
+                        self.observeModals();
+                    }
                 } else {
-                    setTimeout(startModal, 50);
+                    setTimeout(start, 50);
                 }
             };
-            startModal();
+            start();
         }
     };
 
