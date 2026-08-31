@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name              Linux.do 论坛精简
 // @namespace         https://linux.do/
-// @version           1.3.4
+// @version           1.3.8
 // @description       优化 linux.do 论坛体验: 隐藏侧边栏/列表摘要/相关主题推荐/弹窗横幅
 // @match             https://linux.do/*
 // @run-at            document-start
@@ -25,6 +25,19 @@
     var SKIP_PROTOCOLS = /^(mailto|javascript|data|tel):/i;
 
     /*
+     * 与 LinuxDoEnhanceRead (弹窗预览脚本) 共存:
+     * 标题类链接和面板内链接交给该脚本处理,
+     * 不强制新标签。
+     */
+    var EREAD_KEEP_SEL =
+        'a.title, a.raw-topic-link, ' +
+        'a.search-link, a.search-result-topic';
+    var EREAD_PANEL_SEL =
+        '.menu-panel, .user-menu, .quick-access-panel, ' +
+        '.notifications, .search-results, .fps-result, ' +
+        '.search-menu, .search-menu-container';
+
+    /*
      * 弹窗关键词: 模态框文本命中即自动关闭。
      * 按需增删。
      */
@@ -40,7 +53,7 @@
      */
     var CSS = [
         /*
-         * 侧边栏收窄: 10rem, 贴左缘, 无悬停展开。
+         * 侧边栏收窄: 12rem, 贴左缘, 无悬停展开。
          */
         'body:not(.ldc-disabled) #main-outlet-wrapper {',
         '    grid-template-columns: 12rem minmax(0, 1fr) !important;',
@@ -210,26 +223,25 @@
 
         /*
          * 主题页: 帖子/评论正文加宽。
-         * 时间线已固定到窗口右缘, 原 grid 预留列与 max-width 全部解除。
+         * 时间线已 fixed 脱离文档流, grid 预留列与 max-width 全部解除;
+         * 容器改 block 让 grid 失效, 帖子流占满全宽。
          */
-        'body:not(.ldc-disabled) .topic-area {',
-        '    max-width: none !important;',
-        '}',
-        'body:not(.ldc-disabled) .posts-wrapper {',
-        '    max-width: none !important;',
-        '}',
-        'body:not(.ldc-disabled) .container.posts {',
-        '    grid-template-columns: minmax(0, 1fr) !important;',
-        '    grid-template-areas: "posts" !important;',
-        '}',
-        'body:not(.ldc-disabled) .topic-area .container.posts,',
-        'body:not(.ldc-disabled) .container.posts {',
-        '    max-width: none !important;',
-        '    width: auto !important;',
-        '    padding-right: 8rem !important;',
-        '}',
+        'body:not(.ldc-disabled) .topic-area,',
+        'body:not(.ldc-disabled) .posts-wrapper,',
+        'body:not(.ldc-disabled) .container.posts,',
         'body:not(.ldc-disabled) .post-stream .topic-post article.boxed .topic-body {',
         '    max-width: none !important;',
+        '}',
+        'body:not(.ldc-disabled) .container.posts {',
+        '    display: block !important;',
+        '    width: auto !important;',
+        '    grid-template-columns: minmax(0, 1fr) !important;',
+        '    grid-template-areas: "posts" !important;',
+        '    padding-right: 8rem !important;',
+        '    --d-timeline-width: 0px !important;',
+        '}',
+        'body:not(.ldc-disabled) .post-stream {',
+        '    width: 100% !important;',
         '}',
 
         /*
@@ -306,7 +318,18 @@
     };
 
     var main = {
-        modalObserver: null,
+        headObserver: null,
+
+        /*
+         * LinuxDoEnhanceRead (弹窗预览脚本) 是否在场。
+         * 页面加载后探测其注入的 .ldp- 样式标记。
+         */
+        ereadActive: false,
+
+        /*
+         * 增强阅读探测已尝试次数, 防止脚本不装在时无限扫描。
+         */
+        ereadTries: 0,
 
         isEnabled: function () {
             return !GM_getValue('ldc_disabled', false);
@@ -345,11 +368,19 @@
                 timer = setTimeout(function () {
                     timer = null;
                     util.ensureStyleLast(STYLE_ID);
-                    self.widenPosts();
                     self.checkModals();
                     self.moveBadges();
                     self.truncateTitles();
                     self.setLinksTarget();
+
+                    /*
+                     * 增强阅读样式可能晚于首次扫描注入,
+                     * 借防抖批次持续重试直至命中, 有上限防空转。
+                     */
+                    if (!self.ereadActive && self.ereadTries < 50) {
+                        self.ereadTries += 1;
+                        self.detectEread();
+                    }
                 }, 100);
             });
 
@@ -437,28 +468,52 @@
             );
 
             for (var i = 0; i < links.length; i++) {
-                var href = links[i].getAttribute('href');
+                var el = links[i];
+                var href = el.getAttribute('href');
 
+                /*
+                 * target=_blank 不影响增强阅读拦截
+                 * (它 preventDefault 在前), 无需排除标题。
+                 */
                 if (href && href.charAt(0) !== '#' &&
                     !SKIP_PROTOCOLS.test(href)) {
-                    links[i].target = '_blank';
+                    el.target = '_blank';
 
                     /*
                      * relList.add 保留原有 nofollow/ugc 等值。
                      */
-                    if (links[i].relList) {
-                        links[i].relList.add('noopener');
+                    if (el.relList) {
+                        el.relList.add('noopener');
                     } else {
-                        links[i].rel = 'noopener';
+                        el.rel = 'noopener';
                     }
                 }
             }
         },
 
         /*
+         * 探测增强阅读脚本: 它注入含 .ldp- 规则的内联样式。
+         */
+        detectEread: function () {
+            var styles = document.querySelectorAll('style');
+
+            for (var i = 0; i < styles.length; i++) {
+                if (styles[i].textContent &&
+                    styles[i].textContent.indexOf('.ldp-') !== -1) {
+                    this.ereadActive = true;
+                    return true;
+                }
+            }
+
+            return false;
+        },
+
+        /*
          * 捕获阶段拦截链接点击, 强制新标签页打开。
          * capture 先于 Discourse 的冒泡路由处理器,
-         * stopPropagation 阻止 SPA 路由接管。
+         * stopImmediatePropagation 阻止 SPA 路由接管,
+         * 且同节点上后注册的监听器 (增强阅读) 也被拦下,
+         * 避免新标签与弹窗双开。
          */
         onDocumentClick: function (event) {
             if (event.defaultPrevented ||
@@ -488,6 +543,17 @@
                 return;
             }
 
+            /*
+             * 标题类链接和面板内链接:
+             * 增强阅读在场 → 放行给它弹窗预览;
+             * 不在场 → 照常强制新标签。
+             */
+            if (this.ereadActive &&
+                (link.closest(EREAD_KEEP_SEL) ||
+                 link.closest(EREAD_PANEL_SEL))) {
+                return;
+            }
+
             var href = link.getAttribute('href');
 
             if (!href || href.charAt(0) === '#' ||
@@ -496,38 +562,8 @@
             }
 
             event.preventDefault();
-            event.stopPropagation();
+            event.stopImmediatePropagation();
             window.open(link.href, '_blank', 'noopener');
-        },
-
-        /*
-         * 主题页正文加宽: 直接把容器改为 block, 让 grid 完全失效,
-         * 时间线已 fixed 脱离文档流, 帖子流自然占满全宽。
-         */
-        widenPosts: function () {
-            var cell = document.querySelector('.container.posts');
-            if (!cell) {
-                return;
-            }
-
-            var props = {
-                'display': 'block',
-                'grid-template-columns': 'minmax(0, 1fr)',
-                'grid-template-areas': '"posts"',
-                'max-width': 'none',
-                '--d-timeline-width': '0px'
-            };
-
-            for (var key in props) {
-                if (cell.style.getPropertyValue(key) !== props[key]) {
-                    cell.style.setProperty(key, props[key], 'important');
-                }
-            }
-
-            var stream = cell.querySelector('.post-stream');
-            if (stream) {
-                stream.style.setProperty('width', '100%', 'important');
-            }
         },
 
         checkModals: function () {
@@ -855,6 +891,10 @@
                     if (self.isEnabled()) {
                         self.observeModals();
                     }
+
+                    setTimeout(function () {
+                        self.detectEread();
+                    }, 800);
                 } else {
                     setTimeout(start, 50);
                 }
