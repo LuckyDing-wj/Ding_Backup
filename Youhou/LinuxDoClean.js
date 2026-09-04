@@ -418,7 +418,7 @@
                 var full = link.getAttribute('data-ldc-full') ||
                     span.textContent;
 
-                if (full.length <= 80) {
+                if (full.length <= 50) {
                     if (span.textContent !== full) {
                         span.textContent = full;
                     }
@@ -429,7 +429,7 @@
                 link.setAttribute('data-ldc-full', full);
                 link.setAttribute('title', full);
 
-                var cut = full.slice(0, 80) + '…';
+                var cut = full.slice(0, 50) + '…';
 
                 if (span.textContent !== cut) {
                     span.textContent = cut;
