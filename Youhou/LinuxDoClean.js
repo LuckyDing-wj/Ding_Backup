@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name              Linux.do 论坛精简
 // @namespace         https://linux.do/
-// @version           1.3.8
+// @version           1.3.9
 // @description       优化 linux.do 论坛体验: 隐藏侧边栏/列表摘要/相关主题推荐/弹窗横幅
 // @match             https://linux.do/*
 // @run-at            document-start
