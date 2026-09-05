@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name              Linux.do 论坛精简
 // @namespace         https://linux.do/
-// @version           1.3.9
-// @description       优化 linux.do 论坛体验: 隐藏侧边栏/列表摘要/相关主题推荐/弹窗横幅
+// @version           1.4.1
+// @description       优化 linux.do 论坛体验: 收窄侧边栏/列表紧凑/隐藏杂质/新标签页打开
 // @match             https://linux.do/*
 // @run-at            document-start
 // @grant             GM_getValue
@@ -15,8 +15,6 @@
     'use strict';
 
     var STYLE_ID = 'ldc-style';
-    var BG_ID = 'ldc-bg';
-    var BG_CSS_ID = 'ldc-bg-css';
 
     /*
      * 新标签逻辑跳过的协议:
@@ -141,6 +139,7 @@
         '    text-overflow: ellipsis !important;',
         '    white-space: nowrap !important;',
         '    min-width: 0 !important;',
+        '    max-width: 42em !important;',
         '}',
         'body:not(.ldc-disabled) .topic-list .main-link .topic-post-badges {',
         '    flex-shrink: 0 !important;',
@@ -370,18 +369,12 @@
                     util.ensureStyleLast(STYLE_ID);
                     self.checkModals();
                     self.moveBadges();
-                    self.truncateTitles();
-                    self.setLinksTarget();
 
-                    /*
-                     * 增强阅读样式可能晚于首次扫描注入,
-                     * 借防抖批次持续重试直至命中, 有上限防空转。
-                     */
-                    if (!self.ereadActive && self.ereadTries < 50) {
+                    if (!self.ereadActive && self.ereadTries < 10) {
                         self.ereadTries += 1;
                         self.detectEread();
                     }
-                }, 100);
+                }, 150);
             });
 
             this.modalObserver.observe(document.body, {
@@ -396,45 +389,6 @@
                 },
                 true
             );
-        },
-
-        /*
-         * 标题超过 30 字截断, 防止超长标题拉宽页面。
-         * 全文放进 title 属性, 悬停可看。
-         */
-        truncateTitles: function () {
-            var links = document.querySelectorAll(
-                '.topic-list .raw-topic-link'
-            );
-
-            for (var i = 0; i < links.length; i++) {
-                var link = links[i];
-                var span = link.querySelector('span[dir="auto"]');
-
-                if (!span) {
-                    continue;
-                }
-
-                var full = link.getAttribute('data-ldc-full') ||
-                    span.textContent;
-
-                if (full.length <= 50) {
-                    if (span.textContent !== full) {
-                        span.textContent = full;
-                    }
-
-                    continue;
-                }
-
-                link.setAttribute('data-ldc-full', full);
-                link.setAttribute('title', full);
-
-                var cut = full.slice(0, 50) + '…';
-
-                if (span.textContent !== cut) {
-                    span.textContent = cut;
-                }
-            }
         },
 
         /*
@@ -454,39 +408,6 @@
                 if (top && bottom &&
                     bottom.parentNode !== top) {
                     top.insertBefore(bottom, top.firstChild);
-                }
-            }
-        },
-
-        /*
-         * 所有链接新标签页打开。
-         * Ember 重渲染后需重复执行, 由防抖回调驱动。
-         */
-        setLinksTarget: function () {
-            var links = document.querySelectorAll(
-                'a[href]:not([target]):not([data-user-card])'
-            );
-
-            for (var i = 0; i < links.length; i++) {
-                var el = links[i];
-                var href = el.getAttribute('href');
-
-                /*
-                 * target=_blank 不影响增强阅读拦截
-                 * (它 preventDefault 在前), 无需排除标题。
-                 */
-                if (href && href.charAt(0) !== '#' &&
-                    !SKIP_PROTOCOLS.test(href)) {
-                    el.target = '_blank';
-
-                    /*
-                     * relList.add 保留原有 nofollow/ugc 等值。
-                     */
-                    if (el.relList) {
-                        el.relList.add('noopener');
-                    } else {
-                        el.rel = 'noopener';
-                    }
                 }
             }
         },
@@ -623,255 +544,18 @@
             }
         },
 
-        /*
-         * ---- 网页背景图 ----
-         * fixed 定位背景层 z-index:-1, 模糊打在背景层上
-         * (GPU 缓存, 不随内容滚动重算, 性能损耗可忽略)。
-         */
-        isBgEnabled: function () {
-            return util.getValue('bg_enabled', false) === true;
-        },
-
-        applyBackground: function () {
-            var enabled = this.isBgEnabled();
-            var url = util.getValue('bg_url', '');
-            var blur = Number(util.getValue('bg_blur', 0)) || 0;
-            var el = document.getElementById(BG_ID);
-            var css = document.getElementById(BG_CSS_ID);
-
-            if (!enabled || !url) {
-                if (el) {
-                    el.remove();
-                }
-                if (css) {
-                    css.remove();
-                }
-                return;
-            }
-
-            /*
-             * 让 html/body 及主要内容容器背景透明,
-             * 列表/帖子区域透出背景图。
-             * 模态框、下拉菜单保持不透明, 保证可读。
-             */
-            util.addStyle(
-                BG_CSS_ID,
-                [
-                    'html, body { background: transparent !important; }',
-                    '',
-                    '#main-outlet, #main-outlet-wrapper, .wrap,',
-                    '.topic-area, .post-stream, .topic-list,',
-                    '.topic-list .topic-list-item, .topic-list td,',
-                    '.topic-body, .topic-post, .contents,',
-                    '.d-header, .d-header-wrap,',
-                    '#d-sidebar, .sidebar-wrapper, .sidebar-container {',
-                    '    background: transparent !important;',
-                    '}',
-                    '',
-                    '.d-modal, .d-modal__container,',
-                    '.fk-d-menu, .d-header-dropdown,',
-                    '.select-kit-body, .menu-panel {',
-                    '    background-color: var(--secondary) !important;',
-                    '}'
-                ].join('\n')
-            );
-
-            if (!el) {
-                el = document.createElement('div');
-                el.id = BG_ID;
-                el.style.cssText =
-                    'position:fixed;inset:0;z-index:-1;' +
-                    'pointer-events:none;background-size:cover;' +
-                    'background-position:center;background-repeat:no-repeat;';
-                (document.body || document.documentElement)
-                    .appendChild(el);
-            }
-
-            /*
-             * 多重背景: 前层 30% 暗色遮罩保证文字可读。
-             */
-            el.style.backgroundImage =
-                'linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), ' +
-                'url("' + url + '")';
-
-            /*
-             * 模糊边缘泛白用轻微放大抵消。
-             */
-            el.style.filter =
-                blur > 0 ? 'blur(' + blur + 'px)' : 'none';
-            el.style.transform =
-                blur > 0 ? 'scale(1.06)' : 'none';
-        },
-
-        toggleBg: function () {
-            GM_setValue('bg_enabled', !this.isBgEnabled());
-            this.applyBackground();
-        },
-
-        promptBgUrl: function () {
-            var url = prompt(
-                '输入图片 URL (https:// 开头)',
-                util.getValue('bg_url', '')
-            );
-
-            if (url === null) {
-                return;
-            }
-
-            url = url.trim();
-
-            if (!/^https:\/\//i.test(url)) {
-                if (url) {
-                    alert('仅支持 https:// 开头的图片地址');
-                }
-                return;
-            }
-
-            GM_setValue('bg_url', url);
-            GM_setValue('bg_enabled', true);
-            this.applyBackground();
-        },
-
-        /*
-         * 本地图片: 选择一次即转 base64 入库。
-         * canvas 缩到最长 1920px + JPEG 压缩, 控制存储体积。
-         */
-        pickLocalImage: function () {
-            var self = this;
-            var input = document.createElement('input');
-
-            input.type = 'file';
-            input.accept = 'image/*';
-
-            input.onchange = function () {
-                var file = input.files && input.files[0];
-
-                if (!file) {
-                    return;
-                }
-
-                var reader = new FileReader();
-
-                reader.onload = function () {
-                    var img = new Image();
-
-                    img.onload = function () {
-                        var max = 1920;
-                        var scale = Math.min(
-                            1,
-                            max / Math.max(img.width, img.height)
-                        );
-                        var canvas = document.createElement('canvas');
-
-                        canvas.width = Math.round(img.width * scale);
-                        canvas.height = Math.round(img.height * scale);
-                        canvas.getContext('2d').drawImage(
-                            img, 0, 0, canvas.width, canvas.height
-                        );
-
-                        GM_setValue(
-                            'bg_url',
-                            canvas.toDataURL('image/jpeg', 0.85)
-                        );
-                        GM_setValue('bg_enabled', true);
-                        self.applyBackground();
-                    };
-
-                    img.src = reader.result;
-                };
-
-                reader.readAsDataURL(file);
-            };
-
-            input.click();
-        },
-
-        setBgBlur: function () {
-            var raw = prompt(
-                '模糊度 0-30 (像素)',
-                util.getValue('bg_blur', 0)
-            );
-
-            if (raw === null) {
-                return;
-            }
-
-            var blur = Number(raw);
-
-            if (!isFinite(blur) || blur < 0) {
-                blur = 0;
-            }
-            if (blur > 30) {
-                blur = 30;
-            }
-
-            GM_setValue('bg_blur', blur);
-            this.applyBackground();
-        },
-
-        clearBackground: function () {
-            GM_setValue('bg_url', '');
-            GM_setValue('bg_enabled', false);
-            this.applyBackground();
-        },
-
         registerMenu: function () {
             var self = this;
+            var label = self.isEnabled() ? '✅ 精简: 开' : '⭕ 精简: 关';
 
-            var update = function () {
-                return self.isEnabled() ? '✅ 精简: 开' : '⭕ 精简: 关';
-            };
-
-            GM_registerMenuCommand(update(), function () {
+            GM_registerMenuCommand(label, function () {
                 GM_setValue('ldc_disabled', self.isEnabled());
                 location.reload();
-            });
-
-            /*
-             * 背景功能独立于精简开关, 始终可用。
-             * 切换后重注册菜单, 标签实时反映状态。
-             */
-            var bgMenuId = null;
-
-            var updateBgMenu = function () {
-                if (bgMenuId !== null && GM_unregisterMenuCommand) {
-                    GM_unregisterMenuCommand(bgMenuId);
-                }
-
-                bgMenuId = GM_registerMenuCommand(
-                    self.isBgEnabled() ? '🖼️ 背景: 开' : '🖼️ 背景: 关',
-                    function () {
-                        self.toggleBg();
-                        updateBgMenu();
-                    }
-                );
-            };
-
-            updateBgMenu();
-
-            GM_registerMenuCommand('🔗 设置图片 URL', function () {
-                self.promptBgUrl();
-            });
-
-            GM_registerMenuCommand('📁 选择本地图片', function () {
-                self.pickLocalImage();
-            });
-
-            GM_registerMenuCommand('🌫️ 调节模糊度', function () {
-                self.setBgBlur();
-            });
-
-            GM_registerMenuCommand('🗑️ 清除背景', function () {
-                self.clearBackground();
             });
         },
 
         init: function () {
             var self = this;
-
-            /*
-             * 菜单必须无条件注册, 否则关闭后无法重新开启。
-             */
             this.registerMenu();
 
             if (this.isEnabled()) {
@@ -880,14 +564,8 @@
                 });
             }
 
-            /*
-             * body 就绪后: 背景无条件应用;
-             * 弹窗观察仅在精简开启时挂载。
-             */
             var start = function () {
                 if (document.body) {
-                    self.applyBackground();
-
                     if (self.isEnabled()) {
                         self.observeModals();
                     }
