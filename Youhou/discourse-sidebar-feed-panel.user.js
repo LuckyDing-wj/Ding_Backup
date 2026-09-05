@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discourse 侧边栏信息流面板
 // @namespace    https://github.com/LuckyDing-wj/Ding_Backup
-// @version      2.2.3
+// @version      2.3.0
 // @description  将 Discourse 原生侧边栏改造为信息流面板，支持分类筛选、已读/未读过滤、拖拽调整宽度
 // @author       LuckyDing
 // @match        https://linux.do/*
@@ -4041,99 +4041,34 @@
       _triggerTopicHighlight(item);
     }
 
-    // 获取用户信息
-    let avatarUrl = "";
-    let name = "";
-    let username = "";
-    let userProfileUrl = "";
+    // 获取作者昵称
+    let author = "";
     if (topic.posters && topic.posters.length > 0) {
-      const userId = topic.posters[0].user_id;
-      const user = usersMap[userId];
+      const user = usersMap[topic.posters[0].user_id];
       if (user) {
-        name = user.name || "";
-        username = user.username || "";
-        userProfileUrl = getUserProfileUrl(username);
-        if (user.avatar_template) {
-          avatarUrl = getAvatarUrl(user.avatar_template, 45);
-        }
+        author = user.name || user.username || "";
       }
     }
 
-    // 头像 HTML
-    const avatarHtml = userProfileUrl && avatarUrl
-      ? `<span class="sfp-topic-user-link sfp-topic-avatar-link" data-user-profile-url="${escapeAttr(userProfileUrl)}" data-user-profile-link="true"><img class="sfp-topic-avatar" src="${avatarUrl}" alt="${escapeHtml(username)}" loading="lazy"></span>`
-      : (avatarUrl ? `<img class="sfp-topic-avatar" src="${avatarUrl}" alt="${escapeHtml(username)}" loading="lazy">` : "");
-
-    // 显示名称
-    const displayName = name && name !== username
-      ? (userProfileUrl
-        ? `<span class="sfp-topic-user-link sfp-topic-name" data-user-profile-url="${escapeAttr(userProfileUrl)}" data-user-profile-link="true">${escapeHtml(name)}</span>`
-        : `<span class="sfp-topic-name">${escapeHtml(name)}</span>`)
-      : "";
-    const usernameHtml = userProfileUrl
-      ? `<span class="sfp-topic-user-link sfp-topic-username" data-user-profile-url="${escapeAttr(userProfileUrl)}" data-user-profile-link="true">${escapeHtml(username)}</span>`
-      : `<span class="sfp-topic-username">${escapeHtml(username)}</span>`;
-
-    const statusBadgesHtml = _topicStatusBadgesHtml(topic);
-
-    // 标题
     const closedHtml = topic.closed
       ? `<span class="topic-statuses"><span title="${escapeAttr(t("closedTitle"))}" class="topic-status --closed"><svg class="fa d-icon d-icon-lock svg-icon fa-width-auto svg-string" width="1em" height="1em" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><use href="#lock"></use></svg></span></span>`
       : "";
 
-    // 分类
-    const categoryHtml = _buildCategoryBadge(topic.category_id);
-
-    // 标签
-    let tagsHtml = "";
-    if (topic.tags && topic.tags.length > 0) {
-      const tagItems = topic.tags.slice(0, 3).map((tag) => {
-        return _buildTagBadge(tag);
-      }).join("");
-      tagsHtml = `<span class="sfp-topic-tags">${tagItems}</span>`;
-    }
-
     item.innerHTML = `
       <div class="sfp-topic-header">
-        ${avatarHtml}
-        <div class="sfp-topic-meta-col">
-          <div class="sfp-topic-user-info">
-            ${displayName}
-            ${usernameHtml}
-          </div>
-        </div>
-        ${statusBadgesHtml}
+        <span class="sfp-topic-author">${escapeHtml(author)}</span>
         <span class="sfp-topic-time">${_topicTimeHtml(topic)}</span>
       </div>
       <div class="sfp-topic-title"><span class="sfp-topic-title-line">${closedHtml}${escapeHtml(topic.unicode_title?.trim() || topic.title)}</span></div>
-      <div class="sfp-topic-category-tags">
-        ${categoryHtml}
-        ${tagsHtml}
-      </div>
-      <div class="sfp-topic-stats">
-        ${_topicStatsHtml(topic)}
-      </div>
     `;
 
     // 点击跳转
     item.addEventListener("click", (e) => {
-      const profileLink = e.target.closest?.("[data-user-profile-link='true']");
-      if (profileLink) {
-        const profileUrl = profileLink.getAttribute("data-user-profile-url") || "";
-        handlePointerNavigation(e, profileUrl);
-        return;
-      }
       handlePointerNavigation(e, targetUrl, { onPrimaryActivate: () => markTopicAsRead(topic, item) });
     });
 
     // 中键使用原生链接打开新标签页，同时保持本地已读状态同步。
     item.addEventListener("auxclick", (e) => {
-      const profileLink = e.target.closest?.("[data-user-profile-link='true']");
-      if (profileLink) {
-        const profileUrl = profileLink.getAttribute("data-user-profile-url") || "";
-        handlePointerNavigation(e, profileUrl);
-        return;
-      }
       handlePointerNavigation(e, targetUrl, { onMiddleActivate: () => markTopicAsRead(topic, item) });
     });
 
