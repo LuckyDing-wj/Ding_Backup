@@ -1,8 +1,9 @@
 // ==UserScript==
 // @name              Mactype助手
-// @namespace         https://github.com/syhyz1990/mactype
-// @version           2.3.1
+// @namespace         https://github.com/LuckyDing-wj/Ding_Backup
+// @version           0.0.1
 // @description       增强网页文字清晰度
+// @author            LuckyDing
 // @match             *://*/*
 // @run-at            document-start
 // @grant             GM_getValue
@@ -11,7 +12,24 @@
 // @grant             GM_getResourceText
 // @require           https://unpkg.com/sweetalert2@10.16.6/dist/sweetalert2.min.js
 // @resource          swalStyle https://unpkg.com/sweetalert2@10.16.6/dist/sweetalert2.min.css
+// @homepageURL       https://github.com/LuckyDing-wj/Ding_Backup/blob/main/Youhou/MacType.js
+// @downloadURL       https://raw.githubusercontent.com/LuckyDing-wj/Ding_Backup/main/Youhou/MacType.js
+// @updateURL         https://raw.githubusercontent.com/LuckyDing-wj/Ding_Backup/main/Youhou/MacType.js
 // ==/UserScript==
+
+/*
+ * ============ 修改声明 ============
+ * 原作者:   syhyz1990
+ * 原出处:   https://github.com/syhyz1990/mactype
+ * 原版本:   2.3.1
+ *
+ * 本副本为个人修改自用, 不对外传播, 禁止任何形式的收费使用。
+ * 保留原作者与原出处信息。
+ *
+ * 修改记录:
+ *   [LuckyDing] 0.0.1  脚本源与更新地址指向个人 GitHub 仓库 (https://github.com/LuckyDing-wj/Ding_Backup)。
+ * ============ 修改声明 ============
+ */
 
 (function () {
     'use strict';
