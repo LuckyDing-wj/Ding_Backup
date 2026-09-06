@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LinuxDo 增强阅读
 // @namespace    https://github.com/LuckyDing-wj/Ding_Backup
-// @version      0.0.1
+// @version      0.0.2
 // @license      MIT
 // @description  LINUX DO 列表页点击标题弹窗预览整帖，支持楼中楼展示与快捷互动
 // @author       LuckyDing
