@@ -1580,6 +1580,13 @@
       overlay.remove();
       if (CURRENT_OVERLAY === overlay) CURRENT_OVERLAY = null;
       document.removeEventListener('keydown', onEsc);
+
+      // 释放内存引用，防止大量帖子缓存泄漏
+      ctx.nodeMap.clear();
+      ctx.postMap.clear();
+      if (ctx.pending) ctx.pending.length = 0;
+      idToPost.clear();
+      nestedTreeRoots = [];
     };
     function onEsc(e) { if (e.key === 'Escape') close(); }
     overlay.querySelector('.ldp-close').addEventListener('click', close);
@@ -1949,13 +1956,6 @@
             sentinelUpIO.observe(upSentinel);
           }
 
-          body.addEventListener('scroll', () => {
-            if (isAnchoring) return;
-            const { scrollTop, scrollHeight, clientHeight } = body;
-            if (scrollHeight - scrollTop - clientHeight < 400) loadDown();
-            if (scrollTop < 800) loadUp();
-          }, { passive: true });
-
           // locatePost 已等待滚动真正停止，可以安全开放双向加载。
           isAnchoring = false;
 
@@ -2083,15 +2083,6 @@
                 { root: body, rootMargin: '300px' }
             );
             sentinelDownIO.observe(downSentinel);
-
-            // scroll 事件兜底
-            body.addEventListener('scroll', () => {
-              if (isLoadingMore) return;
-              const { scrollTop, scrollHeight, clientHeight } = body;
-              if (scrollHeight - scrollTop - clientHeight < 400) {
-                loadMoreRoots();
-              }
-            }, { passive: true });
 
             // 加载更多顶层回复
             async function loadMoreRoots() {
