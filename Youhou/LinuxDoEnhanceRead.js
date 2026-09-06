@@ -53,7 +53,7 @@
       width:90%;max-width:1000px;height:90vh;
       border-radius:12px;overflow:hidden;font-size:16px;
       line-height:1.65;background:var(--secondary,#fff);color:var(--primary,#222);
-      box-shadow:0 16px 50px rgba(0,0,0,.4);}
+      box-shadow:0 8px 30px rgba(0,0,0,.3);}
     .ldp-header{display:flex;align-items:flex-start;gap:10px;padding:16px 20px;
       border-bottom:1px solid var(--primary-low,#e5e5e5);}
     .ldp-title{margin:0;font-size:18px;font-weight:700;}
@@ -74,14 +74,14 @@
     .ldp-slider-thumb{position:absolute;left:50%;width:auto;min-width:18px;
       height:18px;padding:0 5px;border-radius:9px;background:var(--tertiary,#08c);
       transform:translate(-50%,-50%);cursor:grab;pointer-events:auto;
-      box-shadow:0 1px 4px rgba(0,0,0,.3);transition:transform .1s;
+      box-shadow:0 1px 4px rgba(0,0,0,.2);
       border:2px solid var(--secondary,#fff);color:#fff;font-size:10px;font-weight:700;
       line-height:18px;text-align:center;white-space:nowrap;user-select:none;}
     .ldp-slider-thumb:active{cursor:grabbing;transform:translate(-50%,-50%) scale(1.1);}
     .ldp-slider-tip{position:absolute;right:28px;background:var(--primary,#222);
       color:var(--secondary,#fff);font-size:12px;font-weight:600;padding:3px 8px;
       border-radius:4px;white-space:nowrap;transform:translateY(-50%);opacity:0;
-      transition:opacity .15s;pointer-events:none;}
+      pointer-events:none;}
     .ldp-slider-tip.show{opacity:1;}
     .ldp-slider-tip::after{content:"";position:absolute;right:-5px;top:50%;
       transform:translateY(-50%);border:4px solid transparent;
@@ -93,7 +93,7 @@
       background:var(--secondary,#fff);}
     .ldp-fbtn{background:transparent;border:none;cursor:pointer;display:flex;
       align-items:center;gap:8px;font-size:.95rem;color:var(--primary-medium,#666);
-      padding:8px 16px;border-radius:6px;transition:all .2s ease;font-weight:600;
+      padding:8px 16px;border-radius:6px;font-weight:600;
       white-space:nowrap;text-decoration:none;}
     .ldp-fbtn:hover{background:var(--primary-low,#f0f0f0);color:var(--tertiary,#3b82f6);}
     .ldp-fbtn svg{width:18px;height:18px;fill:currentColor;flex:none;}
@@ -787,59 +787,10 @@
     box = document.createElement('div');
     box.className = 'ldp-replybox';
     box.innerHTML = `<textarea placeholder="回复 @${esc(username)} … (最少16个字符)"></textarea><button class="ldp-send">发送</button><span class="ldp-reply-tip">✓ 已发送</span>`;
-    const textarea = box.querySelector('textarea');
-    bindPasteEvent(textarea);
     const actions = post.querySelector(':scope > .ldp-actions');
     if (actions) actions.after(box);
     else post.appendChild(box);
     return box;
-  }
-
-  /* ============ 图片粘贴上传 ============ */
-  async function uploadImage(file) {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('type', 'composer');
-    formData.append('synchronous', 'true');
-    return apiSend(`${BASE}/uploads.json`, 'POST', formData);
-  }
-
-  function insertAtCursor(textarea, text) {
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const val = textarea.value;
-    textarea.value = val.substring(0, start) + text + val.substring(end);
-    textarea.selectionStart = textarea.selectionEnd = start + text.length;
-    textarea.focus();
-  }
-
-  function bindPasteEvent(textarea) {
-    textarea.addEventListener('paste', async (e) => {
-      const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-      for (const item of items) {
-        if (item.type.indexOf('image') !== -1) {
-          e.preventDefault();
-          const file = item.getAsFile();
-          if (!file) continue;
-          const placeholder = `[正在上传图片 ${file.name} ...]`;
-          insertAtCursor(textarea, placeholder);
-          textarea.classList.add('uploading');
-          try {
-            const res = await uploadImage(file);
-            if (res && res.short_url) {
-              const markdown = `![${res.original_filename}|${res.width}x${res.height}](${res.short_url})`;
-              textarea.value = textarea.value.replace(placeholder, markdown);
-            } else {
-              throw new Error('上传返回数据异常');
-            }
-          } catch (err) {
-            textarea.value = textarea.value.replace(placeholder, `[图片上传失败: ${err.message}]`);
-          } finally {
-            textarea.classList.remove('uploading');
-          }
-        }
-      }
-    });
   }
 
   /* ============ 9. 加载剩余子回复 ============ */
