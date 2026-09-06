@@ -118,14 +118,12 @@
     .ldp-sk-meta{height:11px;width:35%;border-radius:4px;
       display:inline-block;}
     .ldp-sk-head{display:flex;align-items:center;gap:10px;margin:12px 0 10px;}
-    .ldp-sk-avatar{width:32px;height:32px;border-radius:50%;flex:none;}
     .ldp-sk-line{height:12px;}
     .ldp-sk-w30{width:30%;}.ldp-sk-w40{width:40%;}.ldp-sk-w60{width:60%;}
     .ldp-sk-w80{width:80%;}.ldp-sk-w90{width:90%;}.ldp-sk-w100{width:100%;}
     .ldp-sk-para .ldp-sk-line{margin-bottom:8px;}
     .ldp-sk-divider{height:1px;background:var(--primary-low,#e0e0e0);margin:16px 0 12px;}
     .ldp-sk-comment{display:flex;gap:10px;margin-bottom:18px;}
-    .ldp-sk-comment .ldp-sk-avatar{width:28px;height:28px;}
     .ldp-sk-cbody{flex:1;}
 
     /* 楼主帖区块 */
@@ -148,7 +146,6 @@
       100%{background:transparent;}
     }
     .ldp-post-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
-    .ldp-avatar{width:28px;height:28px;border-radius:50%;}
     .ldp-author{font-weight:600;}
     .ldp-op{font-size:11px;font-weight:700;color:#fff;background:var(--tertiary,#08c);
       border-radius:4px;padding:1px 6px;letter-spacing:.5px;}
@@ -455,18 +452,16 @@
   }
 
   /* ============ 2.6 Boosts 气泡渲染辅助 ============ */
+  function renderBoostBubble(b, canDel = !!b.can_delete) {
+    return `<div class="ldp-boost-bubble" data-boost-id="${b.id}">` +
+        `<p>${b.cooked || ''}</p>` +
+        (canDel ? `<button class="ldp-boost-del" title="删除此Boost">×</button>` : '') +
+        `</div>`;
+  }
+
   function renderBoosts(boosts) {
     if (!boosts || !boosts.length) return '';
-    return boosts.map((b) => {
-      const bAvatar = b.user && b.user.avatar_template
-          ? BASE + b.user.avatar_template.replace('{size}', '36') : '';
-      const canDel = !!b.can_delete;
-      return `<div class="ldp-boost-bubble" data-boost-id="${b.id}">` +
-          (bAvatar ? `<img class="ldp-b-avatar" src="${bAvatar}" alt="">` : '') +
-          `<p>${b.cooked || ''}</p>` +
-          (canDel ? `<button class="ldp-boost-del" title="删除此Boost">×</button>` : '') +
-          `</div>`;
-    }).join('');
+    return boosts.map((b) => renderBoostBubble(b)).join('');
   }
 
   /* ============ 3. 单图灯箱 ============ */
@@ -606,7 +601,7 @@
 
   /* ============ 6. 树形递归渲染 ============ */
   /**
-   * renderNestedTree：递归渲染嵌套树结构。
+   * renderNestedTree：递归渲染嵌套树结构（使用 DocumentFragment 批量挂载）。
    * @param {Array} posts - 帖子数组（可能包含 children）
    * @param {HTMLElement} container - DOM 容器
    * @param {object} ctx - 全局上下文
@@ -615,10 +610,12 @@
   function renderNestedTree(posts, container, ctx, depth = 0) {
     if (!posts || !posts.length) return;
 
+    const fragment = document.createDocumentFragment();
+
     posts.forEach(post => {
       if (ctx.postMap) ctx.postMap.set(post.post_number, post);
       const node = renderPost(post, depth > 0, ctx, depth);
-      container.appendChild(node);
+      fragment.appendChild(node);
       ctx.tracker.observe(node);
       ctx.nodeMap.set(post.post_number, node);
 
@@ -634,6 +631,8 @@
         renderLoadMoreButton(post, node, remaining, depth);
       }
     });
+
+    container.appendChild(fragment);
   }
 
   /**
@@ -712,8 +711,6 @@
     }
 
     // 正常评论的渲染逻辑
-    const avatar = p.avatar_template
-        ? BASE + p.avatar_template.replace('{size}', '48') : '';
     const { count, acted, canAct } = likeInfo(p);
     const isOP = ctx.op && p.username === ctx.op;
     const isME = ME_USERNAME && p.username === ME_USERNAME;
@@ -743,7 +740,6 @@
     node.dataset.postNumber = p.post_number;
     node.innerHTML = `
       <div class="ldp-post-head">
-        ${avatar ? `<img class="ldp-avatar" src="${avatar}" alt="" loading="lazy" decoding="async">` : ''}
         <span class="ldp-author">${esc(p.name || p.username)}</span>
         <span class="ldp-user">@${esc(p.username)}</span>
         ${isOP ? '<span class="ldp-op">OP</span>' : ''}
@@ -969,15 +965,10 @@
           if (res && res.id) {
             const listEl = postNode.querySelector(':scope > .ldp-boosts-list');
             if (listEl) {
-              const bAvatar = res.user && res.user.avatar_template
-                  ? BASE + res.user.avatar_template.replace('{size}', '36') : '';
-              const newBubble = document.createElement('div');
-              newBubble.className = 'ldp-boost-bubble ldp-flash';
-              newBubble.dataset.boostId = res.id;
-              newBubble.innerHTML =
-                  (bAvatar ? `<img class="ldp-b-avatar" src="${bAvatar}" alt="">` : '') +
-                  `<p>${res.cooked || ''}</p>` +
-                  `<button class="ldp-boost-del" title="删除此Boost">×</button>`;
+              const temp = document.createElement('div');
+              temp.innerHTML = renderBoostBubble(res, true);
+              const newBubble = temp.firstElementChild;
+              newBubble.classList.add('ldp-flash');
               listEl.appendChild(newBubble);
             }
             input.value = '';
@@ -1446,7 +1437,6 @@
 
   const SKELETON_HTML = `
     <div class="ldp-sk-head">
-      <div class="ldp-sk ldp-sk-avatar"></div>
       <div class="ldp-sk ldp-sk-line ldp-sk-w40"></div>
     </div>
     <div class="ldp-sk-para">
@@ -1457,7 +1447,6 @@
     </div>
     <div class="ldp-sk-divider"></div>
     <div class="ldp-sk-comment">
-      <div class="ldp-sk ldp-sk-avatar"></div>
       <div class="ldp-sk-cbody ldp-sk-para">
         <div class="ldp-sk ldp-sk-line ldp-sk-w30"></div>
         <div class="ldp-sk ldp-sk-line ldp-sk-w90"></div>
@@ -1861,6 +1850,7 @@
               bottomReached = downCursor >= streamFull.length;
 
               if (bottomReached) showBottomTip();
+              floorNavigator.refresh();
             } catch (e) {
               console.error('向下加载失败:', e);
             } finally {
@@ -1924,6 +1914,7 @@
 
               upCursor = start;
               topReached = upCursor === 0;
+              floorNavigator.refresh();
 
               if (topReached && !body.querySelector('.ldp-top-tip')) {
                 const tip = document.createElement('div');
@@ -2108,6 +2099,7 @@
 
                     // 渲染新数据
                     renderNestedTree(newRoots, commentsEl, ctx, 1);
+                    floorNavigator.refresh();
                   }
 
                   // 更新状态
