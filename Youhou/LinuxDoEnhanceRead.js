@@ -111,17 +111,11 @@
     .ldp-loadmask{position:absolute;inset:0;z-index:5;
       padding:8px 20px 20px;overflow:hidden;
       background:var(--secondary,#fff);color:inherit;}
-    .ldp-loadmask.hide{opacity:0;pointer-events:none;transition:opacity .25s ease;}
-    .ldp-sk{position:relative;overflow:hidden;border-radius:6px;
-      background:var(--primary-low,#e9e9e9);}
-    .ldp-sk::after{content:"";position:absolute;inset:0;
-      transform:translateX(-100%);
-      background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);
-      animation:ldp-shimmer 1.2s infinite;}
-    @keyframes ldp-shimmer{100%{transform:translateX(100%);}}
-    .ldp-sk-title{height:18px;width:55%;border-radius:6px;
+    .ldp-loadmask.hide{opacity:0;pointer-events:none;transition:opacity .2s ease;}
+    .ldp-sk{border-radius:4px;background:var(--primary-low,#e9e9e9);}
+    .ldp-sk-title{height:18px;width:55%;border-radius:4px;
       display:inline-block;vertical-align:middle;}
-    .ldp-sk-meta{height:11px;width:35%;border-radius:5px;
+    .ldp-sk-meta{height:11px;width:35%;border-radius:4px;
       display:inline-block;}
     .ldp-sk-head{display:flex;align-items:center;gap:10px;margin:12px 0 10px;}
     .ldp-sk-avatar{width:32px;height:32px;border-radius:50%;flex:none;}
@@ -660,11 +654,10 @@
     }
   }
 
-  /* ============ 7. 楼层归位（已废弃，保留用于扁平流降级） ============ */
+  /* ============ 7. 楼层插入（增量/双向加载） ============ */
   function attachPost(p, ctx) {
     if (ctx.postMap) ctx.postMap.set(p.post_number, p);
     if (p.post_number === 1) {
-      // 1 楼永久常驻：已存在则跳过（防止重复渲染）
       if (ctx.topicEl.querySelector('.ldp-post')) return;
       const node = renderPost(p, false, ctx);
       ctx.topicEl.appendChild(node);
@@ -687,7 +680,6 @@
       ctx.commentsEl.appendChild(node);
     }
     ctx.tracker.observe(node);
-    if (p.reply_count > 0) ctx.repliesIO.observe(node);
   }
 
   /* ============ 7. 渲染单条 ============ */
@@ -784,100 +776,7 @@
       <div class="ldp-sub-loading">加载楼中楼中…</div>
       <div class="ldp-sub-actions"><button class="ldp-btn ldp-load-more-replies">展示更多回复 ↓</button></div>
     `;
-    renderMath(node);
     return node;
-  }
-
-  /* ============ 7.1 公式渲染（KaTeX） ============ */
-  /**
-   * Discourse 的 cooked 中公式只是 <span class="math"> / <div class="math">
-   * 包裹的原始 LaTeX，真正的渲染由站点 discourse-math 插件在客户端完成；
-   * 本脚本自建 DOM 绕过了该流程，因此需自行调用 KaTeX。
-   * 优先复用站点已加载的 KaTeX（window.katex），否则加载站点自带资源，
-   * 最后回退到 jsdelivr CDN（站点可能使用 MathJax 等其它渲染器）。
-   */
-  const KATEX_CDN_CSS = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css';
-  const KATEX_CDN_JS = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js';
-  const KATEX_CDN_MHCHEM = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/mhchem.min.js';
-  let katexLoading = null;
-
-  function loadAsset(kind, url) {
-    return new Promise((resolve, reject) => {
-      if (kind === 'css') {
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = url;
-        link.onload = () => resolve();
-        link.onerror = () => reject(new Error('CSS 加载失败: ' + url));
-        document.head.appendChild(link);
-      } else {
-        const script = document.createElement('script');
-        script.src = url;
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error('JS 加载失败: ' + url));
-        document.head.appendChild(script);
-      }
-    });
-  }
-
-  function loadKatex() {
-    if (window.katex) return Promise.resolve();
-    if (katexLoading) return katexLoading;
-    katexLoading = (async () => {
-      let loaded = false;
-      try {
-        // 1) 站点自带 KaTeX 资源（与 discourse-math 插件一致，同源最快）
-        await loadAsset('css', `${BASE}/plugins/discourse-math/katex/katex.min.css`);
-        await loadAsset('js', `${BASE}/plugins/discourse-math/katex/katex.min.js`);
-        await loadAsset('js', `${BASE}/plugins/discourse-math/katex/mhchem.min.js`);
-        loaded = !!window.katex;
-      } catch (err) {
-        loaded = false;
-      }
-      if (!loaded) {
-        // 2) 站点未提供 KaTeX 时回退到公共 CDN
-        await loadAsset('css', KATEX_CDN_CSS);
-        await loadAsset('js', KATEX_CDN_JS);
-        await loadAsset('js', KATEX_CDN_MHCHEM);
-      }
-      if (!window.katex) throw new Error('KaTeX 加载失败');
-    })();
-    katexLoading.catch(() => { katexLoading = null; });
-    return katexLoading;
-  }
-
-  function renderMath(root) {
-    const mathEls = root.querySelectorAll('.math');
-    if (!mathEls.length) return;
-
-    loadKatex().then(() => {
-      mathEls.forEach((el) => {
-        if (el.dataset.appliedKatex) return;
-        el.dataset.appliedKatex = true;
-
-        // 类名与选项对齐 discourse-math 插件，保证站点 KaTeX CSS 生效
-        const isBlock = el.tagName === 'DIV';
-        el.classList.add('math-container', isBlock ? 'block-math' : 'inline-math', 'katex-math');
-        const text = el.textContent;
-        el.textContent = '';
-        try {
-          window.katex.render(text, el, {
-            trust: (context) => ['\\htmlId', '\\href'].includes(context.command),
-            macros: {
-              '\\eqref': '\\href{###1}{(\\text{#1})}',
-              '\\ref': '\\href{###1}{\\text{#1}}',
-              '\\label': '\\htmlId{#1}{}',
-            },
-            displayMode: isBlock,
-            throwOnError: false,
-          });
-        } catch (err) {
-          el.textContent = text; // 渲染失败时保留原始公式文本
-        }
-      });
-    }).catch((err) => {
-      console.warn('[LinuxDo 增强阅读] KaTeX 加载失败，公式将以文本显示:', err);
-    });
   }
 
   /* ============ 8. 回复框 ============ */
@@ -1565,15 +1464,13 @@
     });
 
     scrollRoot.addEventListener('scroll', onScroll, { passive: true });
-    mutationObserver = new MutationObserver(() => {
-      clearTimeout(mutationTimer);
-      mutationTimer = setTimeout(() => {
+    resizeHandler = () => {
+      clearTimeout(geometryTimer);
+      geometryTimer = setTimeout(() => {
         updateGeometry();
         updateThumbPosition();
       }, 100);
-    });
-    mutationObserver.observe(scrollRoot, { childList: true, subtree: true });
-    resizeHandler = updateGeometry;
+    };
     window.addEventListener('resize', resizeHandler);
     updateGeometry();
     geometryTimer = setTimeout(updateGeometry, 100);
@@ -1589,8 +1486,6 @@
         scrollRoot.removeEventListener('scroll', onScroll);
         if (scrollRaf) cancelAnimationFrame(scrollRaf);
         if (resizeHandler) window.removeEventListener('resize', resizeHandler);
-        if (mutationObserver) mutationObserver.disconnect();
-        clearTimeout(mutationTimer);
         clearTimeout(geometryTimer);
         document.removeEventListener('pointermove', onPointerMove);
         document.removeEventListener('pointerup', onPointerUp);
@@ -1930,7 +1825,6 @@
 
           // 初始化 pending 数组（用于构建楼中楼）
           ctx.pending = [];
-          ctx.repliesIO = { observe: () => {}, disconnect: () => {} };  // 兼容占位
 
           // 保存完整的帖子流（用于双向加载）
           const streamFull = anchorData.post_stream.stream || [];
