@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         LinuxDo 增强阅读
-// @namespace    https://linux.do/
-// @version      1.4.1
+// @namespace    https://github.com/LuckyDing-wj/Ding_Backup
+// @version      0.0.1
 // @license      MIT
-// @description  在 LINUX DO 列表页点击标题即可弹窗预览整帖，楼中楼展示、点赞、回复、收藏、原图灯箱一应俱全，并按真实阅读节奏上报已读进度——无需离开列表页，也无需反复返回。
-// @author       Fashion
+// @description  LINUX DO 列表页点击标题弹窗预览整帖，支持楼中楼展示与快捷互动
+// @author       LuckyDing
 // @match        https://linux.do/*
 // @icon         https://cdn3.ldstatic.com/optimized/4X/6/a/6/6a6affc7b1ce8140279e959d32671304db06d5ab_2_180x180.png
 // @grant        none
@@ -17,17 +17,13 @@
 /*
  * ============ 修改声明 ============
  * 原作者:   Fashion
- * 原出处:   https://greasyfork.org/zh-CN/scripts/584412
- * 原版本:   1.4.0 (基于原版 1.4.0 修改)
+ * 原出处:   https://greasyfork.org/scripts/584412
+ * 原脚本:   https://update.greasyfork.org/scripts/584412/LinuxDo%20%E5%A2%9E%E5%BC%BA%E9%98%85%E8%AF%BB.user.js
+ * 原版本:   1.4.0
  *
- * 本副本为个人修改自用, 不对外传播, 禁止任何形式的收费使用。
- * 后续任何改动须在本声明中注明出处与修改内容 (与原作者署名方式一致)。
- *
- * 修改记录:
- *   [LuckyDing] 1.4.1  更新脚本源指向个人 GitHub 仓库
- *              (https://github.com/LuckyDing-wj/Ding_Backup),
- *              保留原作者与原出处信息。
- * ============ 修改声明 ============
+ * 本副本为个人修改自用，保留原作者与原出处版权。
+ * 本分支进行个人维护与定制。
+ * =================================
  */
 
 (function () {

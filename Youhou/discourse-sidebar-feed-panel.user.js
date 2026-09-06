@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discourse 侧边栏信息流面板
 // @namespace    https://github.com/LuckyDing-wj/Ding_Backup
-// @version      2.3.1
+// @version      0.0.1
 // @description  将 Discourse 原生侧边栏改造为信息流面板，支持分类筛选、已读/未读过滤、拖拽调整宽度
 // @author       LuckyDing
 // @match        https://linux.do/*
@@ -25,7 +25,9 @@
  * 原出处:   https://github.com/YsLtr/discourse-sidebar-feed-panel
  * 原脚本:   https://raw.githubusercontent.com/YsLtr/discourse-sidebar-feed-panel/main/discourse-sidebar-feed-panel.user.js
  * 原版本:   2.2.2
- * 说明:     保留原出处与版权，本分支进行单文件精简与个性化维护。
+ *
+ * 本副本为个人修改自用，保留原作者与原出处版权。
+ * 本分支进行单文件精简与个性化定制维护。
  * =================================
  */
 
