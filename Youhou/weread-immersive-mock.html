@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>MOCK · 沉浸阅读样式演示（非微信读书本体）</title>
+<style>
+/* ================= 页面骨架（模拟微信读书布局，非脚本内容） ================= */
+body { margin: 0; background: #f7f7f8; }
+
+.readerTopBar {
+  position: fixed; top: 0; left: 0; right: 0; height: 48px; z-index: 100;
+  background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  display: flex; align-items: center; justify-content: space-between; padding: 0 24px;
+}
+.readerTopBar .title { font-size: 15px; color: #333; }
+.readerTopBar .bar-actions { font-size: 13px; color: #999; display: flex; gap: 18px; }
+
+.app_content { max-width: 750px; margin: 72px auto 90px; }
+
+.readerChapterContent { padding: 0 8px; color: #3a3a3a; }
+.readerChapterContent p { line-height: 2.1; font-size: 18px; margin: 0 0 1.4em; }
+
+.readerFooter_button {
+  display: block; margin: 40px auto 60px; padding: 12px 46px;
+  border: none; border-radius: 24px; background: #f0f0f0; color: #666;
+  font-size: 15px; cursor: pointer;
+}
+
+.readerControls { position: fixed; z-index: 100; }
+.readerControls button {
+  border: none; background: rgba(255,255,255,.9); padding: 12px 10px;
+  border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.12); font-size: 12px;
+}
+
+/* ================= 以下为脚本同款 CSS（weread-immersive.user.js 0.0.2） ================= */
+/* ---- 脚本 GM_addStyle 沉浸块 ---- */
+.readerTopBar, .readerTopBar *,
+.readerControls, .readerControls *,
+.readerCatalog, .readerCatalog *,
+.readerNotePanel, .readerNotePanel * {
+  font-family: 'SourceHanSerifCN-Bold', 'Source Han Serif SC', 'Noto Serif SC', 'Songti SC', serif !important;
+}
+
+.readerControls {
+  margin-left: 0; right: initial; left: 10px; bottom: 20px;
+  display: flex; flex-direction: column; width: initial;
+}
+
+.readerTopBar, .readerControls {
+  opacity: 0; transition: opacity 1s;
+}
+
+.readerControls {
+  pointer-events: none;
+}
+
+.readerControls::before {
+  content: ''; position: absolute; pointer-events: auto;
+  left: -10px; top: 0; bottom: 0; width: 34px;
+}
+
+.readerControls_item, .readerControls_fontSize {
+  margin-top: 25px; margin-left: 10px; color:#6a6c6c; cursor:pointer;
+}
+
+/* 分组分隔线（脚本同款） */
+.readerControls .wr-sep { position: relative; }
+.readerControls .wr-sep::before {
+  content: ''; position: absolute; top: -13px; left: 15%; right: 15%; height: 1px;
+  background: rgba(0,0,0,.18);
+}
+
+.readerChapterContent { margin-left: 30px !important; margin-right: 30px !important; }
+
+.readerControls:hover, .readerTopBar:hover {
+  opacity: 1; transition: opacity 0.15s; pointer-events: auto;
+}
+
+html body.wr-immersive-pinned .readerTopBar,
+html body.wr-immersive-pinned .readerControls {
+  opacity: 1 !important; pointer-events: auto !important;
+}
+
+html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; }
+html, body { scrollbar-width: none; }
+
+/* 暗夜灰（微信读书夜间系） */
+html body.wr-mode-2 { background-color:#191919 !important; }
+html body.wr-mode-2 .readerTopBar { background-color:#141414 !important; }
+html body.wr-mode-2 .readerControls_item, html body.wr-mode-2 .readerControls_fontSize,
+html body.wr-mode-2 .app_content, html body.wr-mode-2 #custom-theme-toggle-btn { background-color:#222222 !important; }
+html body.wr-mode-2 .readerChapterContent { color: #999999 !important; }
+html body.wr-mode-2 .readerChapterContent .chapterTitle { color: #B8B8B8 !important; }
+html body.wr-mode-2 .readerTopBar .title { color:#B8B8B8 !important; }
+html body.wr-mode-2 .readerTopBar .bar-actions { color:#777777 !important; }
+html body.wr-mode-2 .readerFooter_button { background-color:#222222 !important; color:#999999 !important; }
+
+/* 暖褐夜纸（低蓝光夜读） */
+html body.wr-mode-3 { background-color:#2B241D !important; }
+html body.wr-mode-3 .readerTopBar { background-color:#241E18 !important; }
+html body.wr-mode-3 .readerControls_item, html body.wr-mode-3 .readerControls_fontSize,
+html body.wr-mode-3 .app_content, html body.wr-mode-3 #custom-theme-toggle-btn { background-color:#332B23 !important; }
+html body.wr-mode-3 .readerChapterContent { color: #B5A98F !important; }
+html body.wr-mode-3 .readerChapterContent .chapterTitle { color: #C9BFA9 !important; }
+html body.wr-mode-3 .readerTopBar .title { color:#C9BFA9 !important; }
+html body.wr-mode-3 .readerTopBar .bar-actions { color:#8A7A66 !important; }
+html body.wr-mode-3 .readerFooter_button { background-color:#332B23 !important; color:#B5A98F !important; }
+
+/* ---- 自定义主题（脚本 colors 三档生成结果） ---- */
+html body.wr-mode-0, html body.wr-mode-1, html body.wr-mode-2, html body.wr-mode-3 { transition: background-color 0.3s ease-in-out !important; }
+
+/* 起点羊皮纸米黄 */
+html body.wr-mode-0 { background-color:#F5ECD8 !important; }
+html body.wr-mode-0 .readerTopBar { background-color:#EFE4C9 !important; }
+html body.wr-mode-0 .readerControls_item, html body.wr-mode-0 .readerControls_fontSize,
+html body.wr-mode-0 .app_content, html body.wr-mode-0 #custom-theme-toggle-btn { background-color:#F1E7CD !important; }
+html body.wr-mode-0 .readerChapterContent { color: #3B3B3B !important; }
+html body.wr-mode-0 .readerChapterContent .chapterTitle { color: #1F1D18 !important; }
+html body.wr-mode-0 .readerFooter_button, html body.wr-mode-0 .readerFooter_button:hover,
+html body.wr-mode-0 #custom-theme-toggle-btn { color:#2a2a2a !important; }
+html body.wr-mode-0 .readerFooter_button { background-color:#F5ECD8 !important; }
+
+/* 纵横豆沙绿 */
+html body.wr-mode-1 { background-color:#C7EDCC !important; }
+html body.wr-mode-1 .readerTopBar { background-color:#B8DFBF !important; }
+html body.wr-mode-1 .readerControls_item, html body.wr-mode-1 .readerControls_fontSize,
+html body.wr-mode-1 .app_content, html body.wr-mode-1 #custom-theme-toggle-btn { background-color:#D4EDD6 !important; }
+html body.wr-mode-1 .readerChapterContent { color: #2E2E2E !important; }
+html body.wr-mode-1 .readerChapterContent .chapterTitle { color: #1A1A1A !important; }
+html body.wr-mode-1 .readerFooter_button, html body.wr-mode-1 .readerFooter_button:hover,
+html body.wr-mode-1 #custom-theme-toggle-btn { color:#2a2a2a !important; }
+html body.wr-mode-1 .readerFooter_button { background-color:#C7EDCC !important; }
+
+/* ---- 自定义主题（脚本 colors 浅色组生成结果） ---- */
+</style>
+</head>
+<body class="wr_whiteTheme">
+
+<div class="readerTopBar">
+  <span class="title">《Mock 之书》 第三章 · 沉浸式样</span>
+  <span class="bar-actions"><span>字号</span><span>设置</span><span>更多</span></span>
+</div>
+
+<div class="app_content">
+  <div class="readerChapterContent">
+    <h2 class="chapterTitle" style="font-size:26px;">三、见字如面</h2>
+    <div id="paras"></div>
+    <button class="readerFooter_button">下一页 →</button>
+  </div>
+</div>
+
+<div class="readerControls">
+  <button title="自动滚动：点击启动/加速自动阅读" id="scroll-on" class="readerControls_item wr-sep">自动X0</button>
+  <button title="状态显示；点击停止自动阅读" id="turn-page-tips" class="readerControls_item">等待翻页</button>
+  <button title="鼠标悬停滚轮调节宽度；点击恢复默认 750px" id="width-btn" class="readerControls_item wr-sep">宽度</button>
+  <button title="专注模式（浏览器全屏，Esc 退出）" id="focus-mode" class="readerControls_item wr-sep">专注</button>
+  <button title="切换自定义主题" id="custom-theme-toggle-btn" class="readerControls_item wr-sep">主题</button>
+</div>
+
+<div class="mock-hint" onclick="this.remove()">
+  <b>MOCK 演示页（点我关闭）</b>
+  <ul>
+    <li>鼠标移到<b>顶栏区域</b>或<b>页面左缘（全高 34px 竖带）</b>唤出界面（快进慢出）</li>
+    <li>顶栏隐形时仍拦截其 48px 区域的点击（灵敏度优先）；正文其余区域随便点</li>
+    <li><b>F9</b> 常显切换 · <b>专注</b> 浏览器全屏</li>
+    <li><b>自动X0</b> 点击启动/连点加速 · <b>等待翻页</b> 点击停止 · <b>宽度</b> 悬停滚轮调节、点击复位 750 · 主题循环三色</li>
+  </ul>
+</div>
+<div class="mock-toast" id="toast"></div>
+
+<style>
+.mock-hint {
+  position: fixed; right: 16px; bottom: 16px; z-index: 9999; max-width: 380px;
+  background: rgba(30,30,32,.92); color: #eee; padding: 14px 18px; border-radius: 10px;
+  font: 13px/1.7 system-ui, sans-serif; cursor: pointer; box-shadow: 0 4px 18px rgba(0,0,0,.3);
+}
+.mock-hint ul { margin: 6px 0 0; padding-left: 18px; }
+.mock-toast {
+  position: fixed; top: 60px; left: 50%; transform: translateX(-50%); z-index: 9999;
+  background: rgba(30,30,32,.9); color: #fff; padding: 8px 18px; border-radius: 6px;
+  font: 13px system-ui, sans-serif; opacity: 0; transition: opacity .3s; pointer-events: none;
+}
+</style>
+
+<script>
+/* ================= 脚本同款逻辑（简化版，还原交互手感） ================= */
+const $ = (s) => document.querySelector(s);
+
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.style.opacity = 1;
+  clearTimeout(t._h);
+  t._h = setTimeout(() => { t.style.opacity = 0; }, 1600);
+}
+
+/* 正文填充 */
+const para = '夜色像一层薄的绢，覆在窗棂上。他把灯芯捻低了一线，笔尖悬在纸上，迟迟没有落下。风从北面的窗缝里挤进来，吹动了案头那页未写完的信，纸角一翘一翘，仿佛也在等他落笔。他想，有些话隔着千里，写出来也不过如此，可还是得写——见字如面，四个字，抵得过万语千言。';
+$('#paras').innerHTML = Array.from({ length: 36 }, (_, i) => `<p>${para}</p>`).join('');
+
+/* 宽度调节（同款：max-width + 滚轮/点击复位） */
+function setWidth(w) {
+  w = Math.min(2000, Math.max(320, w));
+  $('.app_content').style.maxWidth = w + 'px';
+  $('.readerTopBar').style.maxWidth = w + 'px';
+  setBtnText('width-btn', '宽度' + w);
+  return w;
+}
+setWidth(750);
+$('#width-btn').addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const cur = parseInt($('.app_content').style.maxWidth) || 750;
+  setWidth(cur + (e.deltaY < 0 ? 1 : -1));
+}, { passive: false });
+$('#width-btn').onclick = () => setWidth(750);
+
+/* 自动滚动（同款 rAF：速度档 X -> X² px/s，亚像素平滑） */
+let scroll_speed = 0, scrollAcc = 0, lastFrameTime = 0;
+function setBtnText(id, html) { const b = document.getElementById(id); if (b) b.innerHTML = html; }
+function isPageBottom() {
+  return document.documentElement.scrollHeight - window.scrollY - window.innerHeight < 3;
+}
+function autoScroll() {
+  scrollAcc = 0; lastFrameTime = 0;
+  requestAnimationFrame(scrollStep);
+}
+async function scrollStep(ts) {
+  if (scroll_speed <= 0) return;
+  if (!lastFrameTime) lastFrameTime = ts;
+  const dt = Math.min(ts - lastFrameTime, 100);
+  lastFrameTime = ts;
+  scrollAcc += ((scroll_speed * scroll_speed) / 1000) * dt;
+  const px = Math.floor(scrollAcc);
+  if (px > 0) { scrollAcc -= px; window.scrollBy(0, px); }
+  if (isPageBottom()) {
+    toast('已到页底 —— 真实脚本此处倒计时 6s 后模拟按 → 翻页');
+    scroll_speed = 0;
+    setBtnText('scroll-on', '自动X0');
+    setBtnText('turn-page-tips', '等待翻页');
+    return;
+  }
+  requestAnimationFrame(scrollStep);
+}
+function stopScroll() {
+  scroll_speed = 0;
+  setBtnText('scroll-on', '自动X0');
+  setBtnText('turn-page-tips', '等待翻页');
+}
+$('#scroll-on').onclick = () => {
+  scroll_speed++;
+  setBtnText('scroll-on', '自动X' + scroll_speed);
+  if (scroll_speed === 1) autoScroll();
+};
+$('#turn-page-tips').onclick = () => {
+  if (scroll_speed > 0) { stopScroll(); }
+  else { scroll_speed = 1; setBtnText('scroll-on', '自动X1'); autoScroll(); }
+};
+
+/* 专注模式（同款） */
+$('#focus-mode').onclick = () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen();
+};
+
+/* 自定义主题（同款三色循环） */
+const modeNames = ['羊皮纸', '豆沙绿', '暗夜', '暖褐'];
+const modeLabels = ['浅1', '浅2', '深1', '深2'];
+$('#custom-theme-toggle-btn').onclick = () => {
+  const cur = document.body.getAttribute('data-custom-color-mode');
+  const next = cur === null ? 0 : (parseInt(cur) + 1) % 4;
+  document.body.classList.remove('wr-mode-0', 'wr-mode-1', 'wr-mode-2', 'wr-mode-3');
+  document.body.classList.add('wr-mode-' + next);
+  document.body.setAttribute('data-custom-color-mode', next);
+  document.getElementById('custom-theme-toggle-btn').textContent = modeLabels[next];
+  toast('自定义主题 ' + modeLabels[next] + '（' + modeNames[next] + '）');
+};
+
+/* F9 常显（同款） */
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'F9') {
+    document.body.classList.toggle('wr-immersive-pinned');
+    toast('常显模式：' + (document.body.classList.contains('wr-immersive-pinned') ? '开' : '关'));
+  }
+});
+</script>
+</body>
+</html>
