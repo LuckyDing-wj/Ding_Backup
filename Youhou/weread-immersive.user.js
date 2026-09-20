@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name              Immersive Reading (for WeRead)
-// @name:zh-CN        沉浸阅读（for微信读书）
+// @name:zh-CN        微信阅读美化
 // @namespace         chrishd
-// @version           0.1.7
+// @version           0.1.8
 // @description       Immersive reading for WeRead: auto-hide top bar & controls (hover reveal), adjustable content width (wheel + memory), smooth multi-speed auto-scroll, auto page turn, light/dark custom reading themes (exclusive with native themes). weread.qq.com only.
 // @description:zh-CN 微信读书沉浸阅读：顶栏/控件自动隐藏（悬停唤出），宽度滚轮调节（带记忆），多档平滑自动滚动，自动翻页，浅色/深色自定义主题（与原生主题互斥），仅适配weread.qq.com站点
 // @author            chrishd
