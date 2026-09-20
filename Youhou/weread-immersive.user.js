@@ -2,14 +2,14 @@
 // @name              Immersive Reading (for WeRead)
 // @name:zh-CN        沉浸阅读（for微信读书）
 // @namespace         chrishd
-// @version           0.1.2
+// @version           0.1.3
 // @description       Immersive reading for WeRead: auto-hide top bar & controls (hover reveal), adjustable content width (wheel + memory), smooth multi-speed auto-scroll, auto page turn, light/dark custom reading themes (exclusive with native themes). weread.qq.com only.
 // @description:zh-CN 微信读书沉浸阅读：顶栏/控件自动隐藏（悬停唤出），宽度滚轮调节（带记忆），多档平滑自动滚动，自动翻页，浅色/深色自定义主题（与原生主题互斥），仅适配weread.qq.com站点
 // @author            chrishd
 // @contributor       GinWU (original author);!Sylas;SimonDW;Li_MIxdown;hubzy;xvusrmqj;LossJ;JackieZheng;das2m;harmonyLife;yehuda
 // @license           MIT
-// @homepageURL       https://github.com/GinWU05/tampermonkey-user.js/tree/main/weread-immersive
-// @supportURL        https://github.com/GinWU05/tampermonkey-user.js/issues
+// @homepageURL       https://github.com/LuckyDing-wj/Ding_Backup/tree/main/Youhou
+// @supportURL        https://github.com/LuckyDing-wj/Ding_Backup/issues
 // @icon              https://weread.qq.com/favicon.ico
 // @match             https://weread.qq.com/web/reader/*
 // @run-at            document-start
