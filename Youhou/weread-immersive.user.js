@@ -2,7 +2,7 @@
 // @name              Immersive Reading (for WeRead)
 // @name:zh-CN        沉浸阅读（for微信读书）
 // @namespace         chrishd
-// @version           0.1.4
+// @version           0.1.5
 // @description       Immersive reading for WeRead: auto-hide top bar & controls (hover reveal), adjustable content width (wheel + memory), smooth multi-speed auto-scroll, auto page turn, light/dark custom reading themes (exclusive with native themes). weread.qq.com only.
 // @description:zh-CN 微信读书沉浸阅读：顶栏/控件自动隐藏（悬停唤出），宽度滚轮调节（带记忆），多档平滑自动滚动，自动翻页，浅色/深色自定义主题（与原生主题互斥），仅适配weread.qq.com站点
 // @author            chrishd
@@ -82,6 +82,12 @@ html body.wr-immersive-pinned .readerControls {
 /* 隐藏整页滚动条（目录/笔记面板内部滚动条保留） */
 html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; }
 html, body { scrollbar-width: none; }
+/* toast 提示（主题切换/F9 常显）：页顶居中、自动隐；!important 同样为对抗站点后加载 CSS */
+#wr-immersive-toast {
+  position: fixed !important; top: 60px !important; left: 50% !important; transform: translateX(-50%) !important; z-index: 99999 !important;
+  background: rgba(30,30,32,.9) !important; color: #fff !important; padding: 8px 18px !important; border-radius: 6px !important;
+  font: 13px system-ui, sans-serif !important; opacity: 0 !important; transition: opacity .3s !important; pointer-events: none !important;
+}
 
 .readerCatalog {
   right: 125px !important; left: initial !important;
@@ -97,10 +103,10 @@ html, body { scrollbar-width: none; }
 // 全部实色（半透明底会叠页面原背景导致色值不稳定）；正文对比 6-9:1，弱于纯黑纸白以降低眩光
 // 正文字体不归本脚本管（见 GM_addStyle 内字体规则的作用域），由微信读书自身设置控制
 const colors = [
-    { label: '浅1', bg: '#F5ECD8', rbg: '#EFE4C9', bgb: '#F1E7CD', bgbBar: '#E8DDBC', text: '#3B3B3B', title: '#1F1D18', white: true },
-    { label: '浅2', bg: '#C7EDCC', rbg: '#B8DFBF', bgb: '#D4EDD6', bgbBar: '#C2E4C7', text: '#2E2E2E', title: '#1A1A1A', white: true },
-    { label: '深1', bg: '#191919', rbg: '#141414', bgb: '#222222', bgbBar: '#1F1F1F', text: '#999999', title: '#B8B8B8', white: false, dark: true },
-    { label: '深2', bg: '#2B241D', rbg: '#241E18', bgb: '#332B23', bgbBar: '#2E2620', text: '#B5A98F', title: '#C9BFA9', white: false, dark: true }
+    { label: '浅1', name: '起点羊皮纸', bg: '#F5ECD8', rbg: '#EFE4C9', bgb: '#F1E7CD', bgbBar: '#E8DDBC', text: '#3B3B3B', title: '#1F1D18', white: true },
+    { label: '浅2', name: '纵横豆沙绿', bg: '#C7EDCC', rbg: '#B8DFBF', bgb: '#D4EDD6', bgbBar: '#C2E4C7', text: '#2E2E2E', title: '#1A1A1A', white: true },
+    { label: '深1', name: '暗夜灰', bg: '#191919', rbg: '#141414', bgb: '#222222', bgbBar: '#1F1F1F', text: '#999999', title: '#B8B8B8', white: false, dark: true },
+    { label: '深2', name: '暖褐夜纸', bg: '#2B241D', rbg: '#241E18', bgb: '#332B23', bgbBar: '#2E2620', text: '#B5A98F', title: '#C9BFA9', white: false, dark: true }
 ];
 const LIGHT_MODES = [0, 1];
 const DARK_MODES = [2, 3];
@@ -371,6 +377,7 @@ function loadCustomThemeFeature() {
         }
 
         changeCustomThemeMode(nextCustomModeIndex.toString());
+        toast(`自定义主题 ${colors[nextCustomModeIndex].label}（${colors[nextCustomModeIndex].name}）`);
     };
 
     div_controls.appendChild(customThemeButton);
@@ -471,6 +478,7 @@ async function init() {
 	document.addEventListener('keydown', (e) => {
 		if (e.key === 'F9') {
 			document.body.classList.toggle('wr-immersive-pinned');
+			toast('常显模式：' + (document.body.classList.contains('wr-immersive-pinned') ? '开' : '关'));
 		}
 	});
 
@@ -669,6 +677,27 @@ function setBtnText(id, html) {
 	if (btn) {
 		btn.innerHTML = html;
 	}
+}
+
+let toastTimer = null;
+/**
+ * 页顶居中 toast（主题切换/F9 常显反馈）；元素懒创建，1.6s 后自动隐
+ * 仅用户主动操作时调用——初始化恢复主题不弹 toast
+ */
+function toast(msg) {
+	if (!document.body) return;
+	let el = document.getElementById('wr-immersive-toast');
+	if (!el) {
+		el = document.createElement('div');
+		el.id = 'wr-immersive-toast';
+		document.body.appendChild(el);
+	}
+	el.textContent = msg;
+	el.style.opacity = '1';
+	clearTimeout(toastTimer);
+	toastTimer = setTimeout(() => {
+		el.style.opacity = '0';
+	}, 1600);
 }
 
 function createElement(tagName, attributes) {
