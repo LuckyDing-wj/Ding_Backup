@@ -2,7 +2,7 @@
 // @name              Immersive Reading (for WeRead)
 // @name:zh-CN        沉浸阅读（for微信读书）
 // @namespace         chrishd
-// @version           0.1.5
+// @version           0.1.6
 // @description       Immersive reading for WeRead: auto-hide top bar & controls (hover reveal), adjustable content width (wheel + memory), smooth multi-speed auto-scroll, auto page turn, light/dark custom reading themes (exclusive with native themes). weread.qq.com only.
 // @description:zh-CN 微信读书沉浸阅读：顶栏/控件自动隐藏（悬停唤出），宽度滚轮调节（带记忆），多档平滑自动滚动，自动翻页，浅色/深色自定义主题（与原生主题互斥），仅适配weread.qq.com站点
 // @author            chrishd
@@ -45,6 +45,10 @@ GM_addStyle(`
 .readerTopBar, .readerControls {
   opacity: 0 !important; transition: opacity 1s !important;
 }
+/* 顶栏隐形时仍拦截其区域点击（灵敏度优先：hover 即唤出，正文其余区域不挡） */
+.readerTopBar {
+  pointer-events: auto !important;
+}
 
 /* 控件栏隐形时不可点；左缘全高宽触发区唤出（外扩到屏幕最左缘，避免 0-10px 死区） */
 .readerControls {
@@ -62,8 +66,11 @@ GM_addStyle(`
   background: rgba(0,0,0,.18);
 }
 
-.readerControls_item, .readerControls_fontSize {
+.readerControls_item, .readerControls_fontSize, #custom-theme-toggle-btn {
   margin-top: 25px !important; margin-left: 10px !important; color:#6a6c6c !important; cursor:pointer !important;
+  border: none !important; padding: 12px 10px !important; border-radius: 10px !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12) !important; font-size: 12px !important;
+  background-color: rgba(255,255,255,.9) !important;
 }
 
 .readerChapterContent { margin-left: 30px !important; margin-right: 30px !important; }
@@ -361,20 +368,9 @@ function loadCustomThemeFeature() {
             customThemeButton.style.transform = "";
         }, 200);
 
-        if (!body.classList.contains(NATIVE_WHITE_THEME_CLASS)) {
-            console.log(`原生深色主题，使用深色自定义主题组`);
-        }
-
-        // 按原生主题选组：浅色组/深色组各自循环
-        const allowedModes = body.classList.contains(NATIVE_WHITE_THEME_CLASS) ? LIGHT_MODES : DARK_MODES;
-        let nextCustomModeIndex = allowedModes[0];
-        const currentAppliedCustomModeStr = body.getAttribute('data-custom-color-mode');
-        if (currentAppliedCustomModeStr !== null) {
-            const posInSet = allowedModes.indexOf(parseInt(currentAppliedCustomModeStr));
-            if (posInSet >= 0) {
-                nextCustomModeIndex = allowedModes[(posInSet + 1) % allowedModes.length];
-            }
-        }
+        // 四档无脑循环 0→1→2→3→0（对齐 mock 手感，不按原生主题分组）
+        const cur = body.getAttribute('data-custom-color-mode');
+        const nextCustomModeIndex = cur === null ? 0 : (parseInt(cur) + 1) % colors.length;
 
         changeCustomThemeMode(nextCustomModeIndex.toString());
         toast(`自定义主题 ${colors[nextCustomModeIndex].label}（${colors[nextCustomModeIndex].name}）`);
@@ -392,8 +388,7 @@ function loadCustomThemeFeature() {
         }
     }, true);
 
-    // 从 localStorage 初始化主题（兼容旧 key）；
-    // 只恢复与当前原生主题同组的档位：浅色组配原生浅色、深色组配原生深色
+    // 从 localStorage 初始化主题（兼容旧 key）；四档循环下不再按原生主题分组
     const localMode = lsGet(LS_THEME_KEY, LS_THEME_LEGACY);
     const bodyForRestore = $css("body");
     if (
@@ -401,11 +396,7 @@ function loadCustomThemeFeature() {
         colors[parseInt(localMode)] &&
         bodyForRestore
     ) {
-        const stored = colors[parseInt(localMode)];
-        const nativeLight = bodyForRestore.classList.contains(NATIVE_WHITE_THEME_CLASS);
-        if ((nativeLight && !stored.dark) || (!nativeLight && stored.dark)) {
-            changeCustomThemeMode(localMode);
-        }
+        changeCustomThemeMode(localMode);
     }
 }
 
@@ -564,6 +555,7 @@ async function scrollStep(ts) {
 			setBtnText("scroll-on", "自动X0");
 			setBtnText("turn-page-tips", "等待翻页");
 		} else {
+			toast('已到页底，6s 后翻页');
 			await nextPage(); // 倒计时并翻页；用户停止时内部直接退出
 		}
 	}
