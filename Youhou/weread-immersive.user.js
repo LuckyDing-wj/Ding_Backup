@@ -2,7 +2,7 @@
 // @name              Immersive Reading (for WeRead)
 // @name:zh-CN        沉浸阅读（for微信读书）
 // @namespace         chrishd
-// @version           0.1.3
+// @version           0.1.4
 // @description       Immersive reading for WeRead: auto-hide top bar & controls (hover reveal), adjustable content width (wheel + memory), smooth multi-speed auto-scroll, auto page turn, light/dark custom reading themes (exclusive with native themes). weread.qq.com only.
 // @description:zh-CN 微信读书沉浸阅读：顶栏/控件自动隐藏（悬停唤出），宽度滚轮调节（带记忆），多档平滑自动滚动，自动翻页，浅色/深色自定义主题（与原生主题互斥），仅适配weread.qq.com站点
 // @author            chrishd
@@ -33,24 +33,27 @@ GM_addStyle(`
   font-family: 'SourceHanSerifCN-Bold', 'Source Han Serif SC', 'Noto Serif SC', 'Songti SC', serif !important;
 }
 
-/* 控件栏：左下角悬浮（右侧留给浏览器扩展），高度自适应（按钮数可变） */
+/* 控件栏：左下角悬浮（右侧留给浏览器扩展），高度自适应（按钮数可变）
+   定位规则全部 !important——@run-at document-start 时本样式先于站点 CSS 注入，
+   同优先级会被站点后加载的规则覆盖，必须强制生效 */
 .readerControls {
-  margin-left: 0; right: initial; left: 10px; bottom: 20px;
-  display: flex; flex-direction: column; width: initial;
+  margin-left: 0 !important; right: initial !important; left: 10px !important; bottom: 20px !important;
+  top: initial !important; transform: none !important;
+  display: flex !important; flex-direction: column !important; width: initial !important;
 }
 
 .readerTopBar, .readerControls {
-  opacity: 0; transition: opacity 1s;
+  opacity: 0 !important; transition: opacity 1s !important;
 }
 
 /* 控件栏隐形时不可点；左缘全高宽触发区唤出（外扩到屏幕最左缘，避免 0-10px 死区） */
 .readerControls {
-  pointer-events: none;
+  pointer-events: none !important;
 }
 
 .readerControls::before {
-  content: ''; position: absolute; pointer-events: auto;
-  left: -10px; top: 0; bottom: 0; width: 34px;
+  content: ''; position: absolute !important; pointer-events: auto !important;
+  left: -10px !important; top: 0 !important; bottom: 0 !important; width: 34px !important;
 }
 
 .readerControls .wr-sep { position: relative; }
@@ -60,14 +63,14 @@ GM_addStyle(`
 }
 
 .readerControls_item, .readerControls_fontSize {
-  margin-top: 25px; margin-left: 10px; color:#6a6c6c; cursor:pointer;
+  margin-top: 25px !important; margin-left: 10px !important; color:#6a6c6c !important; cursor:pointer !important;
 }
 
 .readerChapterContent { margin-left: 30px !important; margin-right: 30px !important; }
 
 /* 唤出：快进慢出；可见期间整条可点 */
 .readerControls:hover, .readerTopBar:hover {
-  opacity: 1; transition: opacity 0.15s; pointer-events: auto;
+  opacity: 1 !important; transition: opacity 0.15s !important; pointer-events: auto !important;
 }
 
 /* F9 常显模式：控件/顶栏固定可见（触屏或不想频繁悬停时用） */
@@ -81,10 +84,10 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { width: 0; height: 0; }
 html, body { scrollbar-width: none; }
 
 .readerCatalog {
-  right: 125px; left: initial;
+  right: 125px !important; left: initial !important;
 }
 .readerAIChatPanel {
-  right: 125px; left: initial;
+  right: 125px !important; left: initial !important;
 }
 `);
 
@@ -190,10 +193,10 @@ function getStyleStr_customTheme() {
     /* 主题切换平滑过渡；顶栏需与主样式的 opacity 过渡合并声明（transition 是单属性，直接写会覆盖掉） */
     body, .readerControls_item, .readerControls_fontSize, #custom-theme-toggle-btn,
     .readerFooter_button, .readerChapterContent {
-        transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out;
+        transition: background-color 0.3s ease-in-out, color 0.3s ease-in-out !important;
     }
     body .readerTopBar {
-        transition: opacity 1s, background-color 0.3s ease-in-out, color 0.3s ease-in-out;
+        transition: opacity 1s, background-color 0.3s ease-in-out, color 0.3s ease-in-out !important;
     }
     `;
 
