@@ -2,7 +2,7 @@
 // @name              Immersive Reading (for WeRead)
 // @name:zh-CN        微信阅读美化
 // @namespace         chrishd
-// @version           0.1.8
+// @version           0.1.9
 // @description       Immersive reading for WeRead: auto-hide top bar & controls (hover reveal), adjustable content width (wheel + memory), smooth multi-speed auto-scroll, auto page turn, light/dark custom reading themes (exclusive with native themes). weread.qq.com only.
 // @description:zh-CN 微信读书沉浸阅读：顶栏/控件自动隐藏（悬停唤出），宽度滚轮调节（带记忆），多档平滑自动滚动，自动翻页，浅色/深色自定义主题（与原生主题互斥），仅适配weread.qq.com站点
 // @author            chrishd
@@ -40,6 +40,7 @@ GM_addStyle(`
   margin-left: 0 !important; right: initial !important; left: 10px !important; bottom: 20px !important;
   top: initial !important; transform: none !important;
   display: flex !important; flex-direction: column !important; width: initial !important;
+  gap: 0 !important; max-height: calc(100vh - 40px) !important; overflow-y: auto !important;
 }
 
 .readerTopBar, .readerControls {
@@ -67,9 +68,10 @@ GM_addStyle(`
 }
 
 .readerControls_item, .readerControls_fontSize, #custom-theme-toggle-btn {
-  margin-top: 10px !important; margin-left: 10px !important; color:#6a6c6c !important; cursor:pointer !important;
-  border: none !important; padding: 6px 8px !important; border-radius: 8px !important;
+  margin: 2px 0 !important; margin-left: 10px !important; color:#6a6c6c !important; cursor:pointer !important;
+  border: none !important; padding: 4px 8px !important; border-radius: 8px !important;
   box-shadow: 0 2px 6px rgba(0,0,0,.1) !important; font-size: 12px !important; white-space: nowrap !important;
+  width: auto !important; height: auto !important; min-width: 0 !important; min-height: 0 !important; max-width: none !important;
   background-color: rgba(255,255,255,.9) !important;
 }
 
