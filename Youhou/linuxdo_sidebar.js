@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Discourse 侧边栏极简信息流
 // @namespace    https://github.com/LuckyDing-wj/Ding_Backup
-// @version      1.1.0
+// @version      1.1.1
 // @author       LuckyDing
 // @description  把 Discourse 原生侧边栏换成极简信息流：列表只显示标题和未读圆点，支持分类标签、排序/时段、已读未读筛选与拖拽调宽；选中 Base64 文本可在浮动菜单中解码
 // @license      MIT
