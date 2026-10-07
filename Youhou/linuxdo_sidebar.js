@@ -87,7 +87,13 @@
 			backToTop: "回到顶部",
 			loadMore: "加载更多",
 			noMore: "— 已经到底了 —",
-			requestFailed: "请求失败"
+			requestFailed: "请求失败",
+			b64Menu: "Base64 解码",
+			b64Copy: "复制解码文本",
+			b64Copied: "已复制！",
+			b64Close: "关闭",
+			b64Empty: "请先选中一段 Base64 文本",
+			b64Failed: "解码失败，请确认内容是有效的 Base64 编码"
 		},
 		en: {
 			all: "All",
@@ -140,7 +146,13 @@
 			backToTop: "Back to top",
 			loadMore: "Load more",
 			noMore: "No more topics",
-			requestFailed: "Request failed"
+			requestFailed: "Request failed",
+			b64Menu: "Base64 decode",
+			b64Copy: "Copy decoded text",
+			b64Copied: "Copied!",
+			b64Close: "Close",
+			b64Empty: "Select some Base64 text first",
+			b64Failed: "Decode failed - make sure the selection is valid Base64"
 		}
 	};
 	function createI18n(getDiscourse) {
@@ -2468,6 +2480,10 @@
 		const { getCsrfToken, getDiscourse, getMessageBus, waitForStableHeaderMount } = discourse;
 		const { t, getUiLocale } = createI18n(getDiscourse);
 		const { _getCategoryMeta, _findTabCategoryByTabId, loadCategoryMetadata } = site;
+		const base64 = createBase64Decoder({
+			t,
+			getScope: () => appScope
+		});
 		const scroll = createFeedScroll({
 			canLoadMore: () => resident.hasMore && !isLoadingMore,
 			onLoadMore: () => loadMoreTopics({ source: "auto" }),
@@ -3449,6 +3465,7 @@
 			appScope.listen(document, "click", () => _closeFloatingPanels());
 			_setupPageActivityTracking();
 			controls.start();
+			base64.start();
 			waitForStableHeaderMount(() => {
 				if (disposed) return;
 				createToggle();
@@ -3464,6 +3481,7 @@
 			if (disposed) return;
 			disposed = true;
 			RouteWatcher.stop();
+			base64.dispose();
 			deactivateFeed();
 			viewScope.dispose();
 			appScope.dispose();
@@ -3584,6 +3602,203 @@
 			handlePointerNavigation,
 			waitForEmber,
 			waitForStableHeaderMount
+		};
+	}
+	function createBase64Decoder({ t, getScope }) {
+		let portalObserver = null;
+		let savedRange = null;
+		function decodeBase64ToUnicode(str) {
+			try {
+				const cleaned = String(str).replace(/\s+/g, "");
+				if (!cleaned) return null;
+				const binary = atob(cleaned);
+				const bytes = new Uint8Array(binary.length);
+				for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+				return new TextDecoder("utf-8").decode(bytes);
+			} catch (e) {
+				return null;
+			}
+		}
+		function copyText(text) {
+			if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+			return new Promise((resolve, reject) => {
+				const textarea = document.createElement("textarea");
+				textarea.value = text;
+				textarea.style.cssText = "position:fixed;opacity:0;pointer-events:none";
+				const container = document.body || document.documentElement;
+				if (!container) {
+					reject(new Error("no container"));
+					return;
+				}
+				container.appendChild(textarea);
+				textarea.select();
+				try {
+					if (document.execCommand("copy")) resolve();
+					else reject(new Error("execCommand copy failed"));
+				} catch (e) {
+					reject(e);
+				} finally {
+					textarea.remove();
+				}
+			});
+		}
+		function getBlockAncestor(node) {
+			const blockTags = new Set([
+				"P", "DIV", "LI", "BLOCKQUOTE", "PRE", "TD", "TH", "SECTION", "ARTICLE",
+				"UL", "OL", "DL", "TABLE", "FIGURE", "DETAILS", "H1", "H2", "H3", "H4", "H5", "H6"
+			]);
+			let el = node && node.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
+			while (el && el !== document.body) {
+				if (blockTags.has(el.tagName)) return el;
+				const display = window.getComputedStyle(el).display;
+				if (display && display !== "inline" && display !== "inline-block" && display !== "inline-flex") return el;
+				el = el.parentElement;
+			}
+			return null;
+		}
+		function _icon(paths) {
+			return `<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+		}
+		const COPY_ICON = _icon('<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>');
+		const CLOSE_ICON = _icon('<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>');
+		function insertDecodedBlock(decodedText, range) {
+			const block = getBlockAncestor(range.endContainer);
+			const wrapper = document.createElement("div");
+			wrapper.className = "sfp-b64-wrapper md-codeblock";
+			wrapper.setAttribute("data-user-content", "");
+			const pre = document.createElement("pre");
+			const code = document.createElement("code");
+			code.textContent = decodedText;
+			pre.appendChild(code);
+			wrapper.appendChild(pre);
+			const toolbar = document.createElement("div");
+			toolbar.className = "sfp-b64-toolbar codeblock-button-wrapper";
+			const copyBtn = document.createElement("button");
+			copyBtn.type = "button";
+			copyBtn.className = "sfp-b64-btn";
+			copyBtn.title = t("b64Copy");
+			copyBtn.setAttribute("aria-label", t("b64Copy"));
+			copyBtn.innerHTML = COPY_ICON;
+			copyBtn.addEventListener("click", (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				copyText(decodedText).then(() => {
+					copyBtn.classList.add("sfp-b64-copied");
+					copyBtn.textContent = t("b64Copied");
+					getScope().timeout(() => {
+						copyBtn.classList.remove("sfp-b64-copied");
+						copyBtn.innerHTML = COPY_ICON;
+					}, 2000);
+				}).catch(() => {
+					copyBtn.title = t("b64Copy");
+				});
+			});
+			const closeBtn = document.createElement("button");
+			closeBtn.type = "button";
+			closeBtn.className = "sfp-b64-btn";
+			closeBtn.title = t("b64Close");
+			closeBtn.setAttribute("aria-label", t("b64Close"));
+			closeBtn.innerHTML = CLOSE_ICON;
+			closeBtn.addEventListener("click", (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				wrapper.remove();
+			});
+			toolbar.appendChild(copyBtn);
+			toolbar.appendChild(closeBtn);
+			wrapper.appendChild(toolbar);
+			const target = document.createRange();
+			if (block) target.setStartAfter(block);
+			else target.setStart(range.endContainer, range.endOffset);
+			target.collapse(true);
+			target.insertNode(wrapper);
+		}
+		function closeFloatingMenu(menu) {
+			document.dispatchEvent(new KeyboardEvent("keydown", {
+				key: "Escape",
+				code: "Escape",
+				keyCode: 27,
+				which: 27,
+				bubbles: true
+			}));
+			getScope().timeout(() => {
+				const root = menu.closest(".fk-d-menu") || menu;
+				root.remove();
+			}, 80);
+		}
+		function addDecodeButton(menu) {
+			if (!menu || menu.dataset.sfpB64Added === "true" || menu.dataset.sfpB64Pending === "true") return;
+			const tryAdd = (attempts = 0) => {
+				if (menu.dataset.sfpB64Added === "true") return;
+				const btns = menu.querySelector(".quote-button .buttons, .buttons");
+				if (!btns) {
+					if (attempts < 10) {
+						menu.dataset.sfpB64Pending = "true";
+						getScope().timeout(() => tryAdd(attempts + 1), 300);
+					} else delete menu.dataset.sfpB64Pending;
+					return;
+				}
+				const decodeBtn = document.createElement("button");
+				decodeBtn.type = "button";
+				decodeBtn.className = "btn btn-icon-text btn-flat";
+				decodeBtn.title = t("b64Menu");
+				decodeBtn.setAttribute("aria-label", t("b64Menu"));
+				decodeBtn.innerHTML = `<span class="fa d-icon">&#128275;</span><span class="d-button-label">${escapeHtml(t("b64Menu"))}</span>`;
+				decodeBtn.addEventListener("mousedown", () => {
+					const sel = window.getSelection();
+					savedRange = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+				});
+				decodeBtn.addEventListener("click", (e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					const sel = window.getSelection();
+					const range = savedRange || (sel && sel.rangeCount ? sel.getRangeAt(0) : null);
+					if (!range || !range.toString().trim()) {
+						alert(t("b64Empty"));
+						return;
+					}
+					const decoded = decodeBase64ToUnicode(range.toString().trim());
+					if (decoded === null) {
+						alert(t("b64Failed"));
+						return;
+					}
+					insertDecodedBlock(decoded, range);
+					savedRange = null;
+					closeFloatingMenu(menu);
+				});
+				btns.appendChild(decodeBtn);
+				menu.dataset.sfpB64Added = "true";
+				delete menu.dataset.sfpB64Pending;
+			};
+			tryAdd();
+		}
+		function start() {
+			if (portalObserver) return;
+			const portal = document.getElementById("d-menu-portals");
+			if (!portal) {
+				getScope().timeout(start, 500);
+				return;
+			}
+			portal.querySelectorAll("div.fk-d-menu").forEach(addDecodeButton);
+			portalObserver = new MutationObserver((mutations) => {
+				for (const mut of mutations) {
+					for (const node of mut.addedNodes) {
+						if (!node || node.nodeType !== Node.ELEMENT_NODE) continue;
+						if (node.matches?.("div.fk-d-menu")) addDecodeButton(node);
+						node.querySelectorAll?.("div.fk-d-menu").forEach(addDecodeButton);
+					}
+				}
+			});
+			portalObserver.observe(portal, { childList: true, subtree: true });
+		}
+		function dispose() {
+			portalObserver?.disconnect();
+			portalObserver = null;
+			savedRange = null;
+		}
+		return {
+			start,
+			dispose
 		};
 	}
 	var _GM_addStyle = (() => typeof GM_addStyle != "undefined" ? GM_addStyle : void 0)();
@@ -3742,7 +3957,7 @@
 			this.storage.set(TAB_ORDER_KEY, ids);
 		}
 	};
-	var SFP_STYLES = "/* ===== 切换按钮 ===== */\n.sfp-toggle-btn {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 28px;\n  height: 28px;\n  border: none;\n  background: var(--secondary);\n  color: var(--primary-medium);\n  cursor: pointer;\n  border-radius: 6px;\n  padding: 0;\n  margin-left: 6px;\n  vertical-align: middle;\n  transition:\n    color 0.2s,\n    background 0.2s;\n  flex-shrink: 0;\n}\n.sfp-toggle-btn:hover {\n  color: var(--primary);\n  background: var(--primary-low);\n}\n.sfp-toggle-btn.active {\n  color: var(--secondary);\n  background: var(--tertiary);\n}\n.sfp-toggle-btn svg {\n  width: 18px;\n  height: 18px;\n  fill: currentColor;\n}\n.home-logo-wrapper-outlet .title {\n  display: flex;\n  align-items: center;\n  gap: 2px;\n}\n\n/* ===== 侧边栏 Feed 模式 ===== */\n.sidebar-wrapper:has(> .sidebar-container.sfp-feed-mode) {\n  overflow-x: hidden !important;\n}\n.sidebar-container.sfp-feed-mode {\n  overflow-x: hidden !important;\n}\n.sidebar-container.sfp-feed-mode .sfp-feed-container,\n.sidebar-container.sfp-feed-mode .sfp-feed-container * {\n  box-sizing: border-box;\n}\n/* 隐藏所有非 feed 的直接子元素 */\n.sidebar-container.sfp-feed-mode > :not(.sfp-feed-container):not(.sfp-resizer) {\n  display: none !important;\n}\n/* 显式隐藏常见 sidebar 组件（嵌套情况兜底） */\n.sidebar-container.sfp-feed-mode .sidebar-sections,\n.sidebar-container.sfp-feed-mode .sidebar-footer-container,\n.sidebar-container.sfp-feed-mode .sidebar-footer-wrapper,\n.sidebar-container.sfp-feed-mode .sidebar-footer,\n.sidebar-container.sfp-feed-mode .sidebar-custom-sections,\n.sidebar-container.sfp-feed-mode .sidebar-section-wrapper,\n.sidebar-container.sfp-feed-mode .sidebar-section-header,\n.sidebar-container.sfp-feed-mode .sidebar-section-link-wrapper {\n  display: none !important;\n}\n.sidebar-container.sfp-feed-mode .sfp-feed-container {\n  display: flex;\n  flex-direction: column;\n  position: relative;\n  width: 100%;\n  min-width: 0;\n  height: 100%;\n  overflow: hidden;\n  max-width: 100%;\n}\n.sidebar-wrapper.sfp-width-animating,\n.sidebar-container.sfp-width-animating,\n#d-sidebar.sfp-width-animating {\n  transition:\n    width 220ms ease,\n    max-width 220ms ease;\n}\n\n/* ===== 拖拽调整宽度 ===== */\n.sfp-resizer {\n  position: absolute;\n  top: 0;\n  right: -2px;\n  width: 5px;\n  height: 100%;\n  cursor: ew-resize;\n  z-index: 10001;\n  transition: background 0.2s;\n}\n.sfp-resizer:hover,\n.sfp-resizer.sfp-resizing {\n  background: var(--tertiary);\n}\n\n/* ===== Feed Header ===== */\n.sfp-feed-header {\n  position: relative;\n  flex-shrink: 0;\n  padding: 8px 12px;\n  border-bottom: 1px solid var(--primary-low);\n  display: flex;\n  flex-wrap: wrap;\n  gap: 6px;\n  align-items: center;\n  overflow: visible;\n}\n.sfp-feed-header .sfp-header-spacer {\n  flex: 1 1 auto;\n  min-width: 8px;\n}\n.sfp-feed-header .sfp-refresh-btn,\n.sfp-feed-header .sfp-settings-btn {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 28px;\n  height: 28px;\n  border: none;\n  background: var(--primary-very-low);\n  color: var(--primary-medium);\n  cursor: pointer;\n  border-radius: 6px;\n  padding: 0;\n  flex-shrink: 0;\n  transition:\n    color 0.2s,\n    background 0.2s;\n}\n.sfp-feed-header .sfp-refresh-btn:hover,\n.sfp-feed-header .sfp-settings-btn:hover,\n.sfp-settings-wrap.open .sfp-settings-btn {\n  color: var(--tertiary);\n  background: var(--primary-low);\n}\n.sfp-feed-header .sfp-refresh-btn.spinning svg {\n  animation: sfp-spin 0.6s linear infinite;\n}\n.sfp-feed-header .sfp-refresh-btn.spinning {\n  color: var(--tertiary);\n  background: var(--primary-low);\n}\n.sfp-feed-header\n  .sfp-refresh-btn.sfp-back-top-enter:not(.sfp-has-incoming-count)\n  svg {\n  animation: sfp-back-top-enter 0.18s ease;\n}\n.sfp-feed-header .sfp-refresh-btn .sfp-refresh-count {\n  display: inline-block;\n  min-width: 3ch;\n  color: var(--tertiary);\n  font-size: 13px;\n  font-weight: 700;\n  line-height: 1;\n  text-align: center;\n  white-space: nowrap;\n}\n@keyframes sfp-spin {\n  from {\n    transform: rotate(0deg);\n  }\n  to {\n    transform: rotate(360deg);\n  }\n}\n@keyframes sfp-back-top-enter {\n  from {\n    opacity: 0;\n    transform: translateY(8px);\n  }\n  to {\n    opacity: 1;\n    transform: translateY(0);\n  }\n}\n.sfp-feed-header .sfp-refresh-btn svg,\n.sfp-feed-header .sfp-settings-btn svg {\n  width: 16px;\n  height: 16px;\n  fill: currentColor;\n}\n.sfp-settings-btn {\n  position: absolute;\n  top: 0;\n  right: 0;\n  z-index: 2;\n  gap: 3px;\n  flex-direction: column;\n}\n.sfp-settings-line {\n  width: 14px;\n  height: 2px;\n  border-radius: 2px;\n  background: currentColor;\n  transition:\n    transform 0.28s ease,\n    opacity 0.2s ease;\n  transform-origin: center;\n}\n.sfp-settings-wrap.open .sfp-settings-line-1 {\n  transform: translateY(5px) rotate(45deg);\n}\n.sfp-settings-wrap.open .sfp-settings-line-2 {\n  opacity: 0;\n  transform: scaleX(0);\n}\n.sfp-settings-wrap.open .sfp-settings-line-3 {\n  transform: translateY(-5px) rotate(-45deg);\n}\n.sfp-settings-wrap {\n  position: relative;\n  width: 28px;\n  height: 28px;\n  flex-shrink: 0;\n  overflow: visible;\n}\n.sfp-settings-shell {\n  position: absolute;\n  top: 0;\n  right: 0;\n  width: 28px;\n  height: 28px;\n  background: transparent;\n  border: none;\n  border-radius: 6px;\n  box-shadow: none;\n  z-index: 10003;\n  overflow: hidden;\n  transition:\n    width 0.36s cubic-bezier(0.25, 1, 0.5, 1),\n    height 0.36s cubic-bezier(0.25, 1, 0.5, 1),\n    border-radius 0.24s ease,\n    background 0.2s ease;\n}\n.sfp-settings-wrap.open .sfp-settings-shell {\n  width: 204px;\n  height: var(--sfp-settings-shell-height, 128px);\n  overflow: visible;\n  background: var(--secondary);\n  border: 1px solid var(--primary-low);\n  border-radius: 8px;\n  box-shadow: 0 8px 24px color-mix(in srgb, var(--primary) 14%, transparent);\n}\n.sfp-settings-panel {\n  box-sizing: border-box;\n  width: 204px;\n  padding: 36px 10px 8px 10px;\n  opacity: 0;\n  visibility: hidden;\n  transform: translateY(-8px);\n  pointer-events: none;\n  transition:\n    opacity 0.18s ease,\n    transform 0.18s ease,\n    visibility 0.18s;\n}\n.sfp-settings-wrap.open .sfp-settings-panel {\n  opacity: 1;\n  visibility: visible;\n  transform: translateY(0);\n  pointer-events: auto;\n  transition:\n    opacity 0.26s ease 0.12s,\n    transform 0.26s ease 0.12s,\n    visibility 0.26s 0.12s;\n}\n.sfp-setting-row {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) auto;\n  align-items: center;\n  column-gap: 8px;\n  font-size: 12px;\n  color: var(--primary);\n  line-height: 1.3;\n  padding: 4px 0;\n}\n.sfp-setting-label {\n  display: inline-flex;\n  align-items: center;\n  gap: 4px;\n  min-width: 0;\n  white-space: nowrap;\n}\n.sfp-setting-help-wrap {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 14px;\n  height: 14px;\n  flex: 0 0 14px;\n  pointer-events: none;\n}\n.sfp-setting-help {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 14px;\n  height: 14px;\n  box-sizing: border-box;\n  appearance: none;\n  border: none;\n  background: transparent;\n  color: var(--primary-medium);\n  cursor: help;\n  padding: 0;\n  pointer-events: auto;\n}\n.sfp-setting-help svg {\n  width: 13px;\n  height: 13px;\n  display: block;\n  fill: currentColor;\n  pointer-events: none;\n}\n.sfp-setting-help:hover {\n  color: var(--tertiary);\n  outline: none;\n}\n.sfp-help-tooltip {\n  position: fixed;\n  z-index: 10004;\n  width: 178px;\n  max-width: calc(100vw - 32px);\n  padding: 8px 9px;\n  border: 1px solid var(--primary-low);\n  border-radius: 6px;\n  background: var(--secondary);\n  box-shadow: 0 8px 22px color-mix(in srgb, var(--primary) 16%, transparent);\n  color: var(--primary);\n  font-size: 12px;\n  font-weight: 400;\n  line-height: 1.45;\n  text-align: left;\n  white-space: normal;\n  opacity: 0;\n  pointer-events: none;\n  transform: translateY(-4px);\n  transition:\n    opacity 0.16s ease,\n    transform 0.16s ease;\n}\n.sfp-help-tooltip.visible {\n  opacity: 1;\n  transform: translateY(0);\n}\n.sfp-setting-row input[type=\"checkbox\"] {\n  flex-shrink: 0;\n  margin: 0;\n}\n.sfp-setting-interval {\n  display: none;\n  grid-template-columns: minmax(0, 1fr) 58px auto;\n  align-items: center;\n  column-gap: 6px;\n  margin-top: 6px;\n  font-size: 12px;\n  color: var(--primary-medium);\n}\n.sfp-setting-interval.visible {\n  display: grid;\n}\n.sfp-setting-row.hidden,\n.sfp-setting-interval.hidden {\n  display: none;\n}\n.sfp-setting-interval input {\n  width: 58px;\n  height: 26px;\n  padding: 2px 6px;\n  border: 1px solid var(--primary-low);\n  border-radius: 4px;\n  background: var(--secondary);\n  color: var(--primary);\n  font-size: 12px;\n}\n\n/* ===== 自定义下拉 ===== */\n.sfp-custom-select {\n  position: relative;\n  flex-shrink: 0;\n}\n.sfp-custom-select-btn {\n  display: inline-flex;\n  align-items: center;\n  gap: 4px;\n  padding: 4px 10px;\n  font-size: 12px;\n  height: 28px;\n  border: none;\n  background: var(--primary-very-low);\n  color: var(--primary);\n  border-radius: 6px;\n  cursor: pointer;\n  white-space: nowrap;\n  user-select: none;\n  transition:\n    background 0.2s,\n    color 0.2s;\n}\n.sfp-custom-select-btn:hover {\n  background: var(--primary-low);\n}\n.sfp-custom-select-btn::after {\n  content: \"\";\n  width: 0;\n  height: 0;\n  border-left: 4px solid transparent;\n  border-right: 4px solid transparent;\n  border-top: 5px solid currentColor;\n}\n.sfp-custom-select-dropdown {\n  position: absolute;\n  top: calc(100% + 4px);\n  left: 0;\n  min-width: 100%;\n  background: var(--secondary);\n  border: 1px solid var(--primary-low);\n  border-radius: 6px;\n  box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 10%, transparent);\n  z-index: 10002;\n  display: none;\n  overflow: hidden;\n}\n.sfp-custom-select.open .sfp-custom-select-dropdown {\n  display: block;\n}\n.sfp-custom-select-option {\n  display: block;\n  width: 100%;\n  padding: 6px 14px;\n  font-size: 12px;\n  border: none;\n  background: none;\n  color: var(--primary);\n  cursor: pointer;\n  text-align: left;\n  white-space: nowrap;\n  transition: background 0.15s;\n}\n.sfp-custom-select-option:hover {\n  background: var(--primary-very-low);\n}\n.sfp-custom-select-option.selected {\n  color: var(--tertiary);\n  font-weight: 600;\n}\n\n/* ===== 分类标签栏 ===== */\n.sfp-tab-shell {\n  position: relative;\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) 36px;\n  align-items: stretch;\n  width: 100%;\n  min-width: 0;\n  max-width: 100%;\n  border-bottom: 1px solid var(--primary-low);\n  flex-shrink: 0;\n  background: var(--d-content-background, var(--secondary));\n}\n.sfp-tab-bar {\n  display: flex;\n  gap: 8px;\n  overflow-x: auto;\n  overflow-y: hidden;\n  -webkit-overflow-scrolling: touch;\n  scrollbar-width: none;\n  width: 100%;\n  min-width: 0;\n  max-width: 100%;\n  padding: 8px 12px;\n  margin: 0;\n  flex-shrink: 0;\n  background: transparent;\n}\n.sfp-tab-bar::-webkit-scrollbar {\n  display: none;\n}\n.sfp-tab-item {\n  display: inline-flex;\n  align-items: center;\n  gap: 3px;\n  padding: 4px 12px;\n  font-size: 13px;\n  color: var(--primary-medium);\n  cursor: pointer;\n  white-space: nowrap;\n  border-radius: 16px;\n  background: var(--primary-very-low);\n  transition: all 0.2s;\n  border: 1px solid transparent;\n  flex-shrink: 0;\n  user-select: none;\n}\n.sfp-tab-item:hover {\n  color: var(--primary);\n  background: var(--primary-low);\n}\n.sfp-tab-item.active {\n  color: var(--secondary);\n  background: var(--tertiary);\n  border-color: var(--tertiary);\n}\n.sfp-tab-item svg {\n  width: 12px;\n  height: 12px;\n  fill: currentColor;\n  flex-shrink: 0;\n}\n.sfp-category-color-marker {\n  width: 0.72em;\n  height: 0.72em;\n  border-radius: 50%;\n  background: var(--sfp-category-marker-color, currentColor);\n  box-shadow: inset 0 0 0 1px\n    color-mix(in srgb, var(--primary) 12%, transparent);\n  flex: 0 0 auto;\n}\n.sfp-tab-more-btn {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 36px;\n  min-width: 36px;\n  padding: 0;\n  border: none;\n  border-left: 1px solid var(--primary-low);\n  background: var(--d-content-background, var(--secondary));\n  color: var(--primary-medium);\n  cursor: pointer;\n  transition:\n    background 0.2s,\n    color 0.2s;\n}\n.sfp-tab-more-btn:hover,\n.sfp-tab-shell.open .sfp-tab-more-btn {\n  background: var(--primary-very-low);\n  color: var(--primary);\n}\n.sfp-tab-more-btn svg {\n  width: 16px;\n  height: 16px;\n  fill: currentColor;\n}\n.sfp-tab-panel {\n  position: absolute;\n  top: 100%;\n  right: 8px;\n  left: 8px;\n  display: none;\n  padding: 10px;\n  max-height: min(58vh, 420px);\n  overflow-y: auto;\n  background: var(--secondary);\n  border: 1px solid var(--primary-low);\n  border-radius: 8px;\n  box-shadow: 0 10px 28px color-mix(in srgb, var(--primary) 16%, transparent);\n  z-index: 10002;\n}\n.sfp-tab-shell.open .sfp-tab-panel {\n  display: block;\n}\n.sfp-tab-panel-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 8px;\n  margin-bottom: 8px;\n  font-size: 12px;\n  color: var(--primary-medium);\n  line-height: 1.3;\n}\n.sfp-tab-panel-title {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  min-width: 0;\n}\n.sfp-tab-panel-title svg {\n  width: 13px;\n  height: 13px;\n  fill: currentColor;\n  flex-shrink: 0;\n}\n.sfp-tab-panel-close {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 24px;\n  height: 24px;\n  padding: 0;\n  border: none;\n  border-radius: 4px;\n  background: transparent;\n  color: var(--primary-medium);\n  cursor: pointer;\n}\n.sfp-tab-panel-close:hover {\n  background: var(--primary-very-low);\n  color: var(--primary);\n}\n.sfp-tab-grid {\n  display: grid;\n  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));\n  gap: 6px;\n}\n.sfp-tab-grid-item {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 5px;\n  min-width: 0;\n  min-height: 32px;\n  padding: 6px 8px;\n  border: 1px solid transparent;\n  border-radius: 6px;\n  background: var(--primary-very-low);\n  color: var(--primary-medium);\n  cursor: pointer;\n  font-size: 12px;\n  line-height: 1.2;\n  text-align: center;\n  user-select: none;\n  transition:\n    background 0.15s,\n    border-color 0.15s,\n    color 0.15s,\n    opacity 0.15s;\n}\n.sfp-tab-grid-item svg {\n  width: 12px;\n  height: 12px;\n  fill: currentColor;\n  flex: 0 0 auto;\n}\n.sfp-tab-grid-item .sfp-category-color-marker {\n  width: 0.75em;\n  height: 0.75em;\n}\n.sfp-tab-grid-item span {\n  min-width: 0;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n.sfp-tab-grid-item:hover {\n  background: var(--primary-low);\n  color: var(--primary);\n}\n.sfp-tab-grid-item.active {\n  background: var(--tertiary);\n  border-color: var(--tertiary);\n  color: var(--secondary);\n}\n.sfp-tab-grid-item.dragging {\n  opacity: 0.45;\n}\n.sfp-tab-grid-item.drop-target {\n  border-color: var(--tertiary);\n  box-shadow: inset 0 0 0 1px var(--tertiary);\n}\n\n/* ===== 筛选栏 ===== */\n.sfp-filter-bar {\n  position: relative;\n  z-index: 3;\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  width: 100%;\n  min-width: 0;\n  max-width: 100%;\n  padding: 8px 16px;\n  margin: 0;\n  background: var(--primary-very-low);\n  border-bottom: 1px solid var(--primary-low);\n  font-size: 12px;\n  color: var(--primary-medium);\n  flex-shrink: 0;\n}\n.sfp-filter-item {\n  cursor: pointer;\n  padding: 2px 6px;\n  border-radius: 4px;\n  transition: all 0.2s;\n  user-select: none;\n}\n.sfp-filter-item:hover {\n  color: var(--tertiary);\n  background: var(--primary-low);\n}\n.sfp-filter-item.active {\n  color: var(--secondary);\n  background: var(--tertiary);\n}\n\n/* ===== Feed 滚动区 ===== */\n.sfp-feed-scroll {\n  position: relative;\n  flex: 1;\n  min-width: 0;\n  max-width: 100%;\n  overflow-y: auto;\n  overflow-x: hidden;\n  -webkit-overflow-scrolling: touch;\n  overscroll-behavior-y: contain;\n  touch-action: pan-y pinch-zoom;\n  --scrollbarBg: transparent;\n  --scrollbarThumbBg: var(--d-selected, var(--token-color-surface-hovered));\n  --scrollbarWidth: var(--space-2, 0.5em);\n  scrollbar-gutter: stable;\n  scrollbar-color: var(--scrollbarThumbBg) var(--scrollbarBg);\n}\n.sfp-feed-scroll::-webkit-scrollbar {\n  width: var(--scrollbarWidth);\n}\n.sfp-feed-scroll::-webkit-scrollbar-thumb {\n  background-color: var(--scrollbarThumbBg);\n  border-radius: calc(var(--scrollbarWidth) / 2);\n}\n.sfp-feed-scroll::-webkit-scrollbar-track {\n  background-color: transparent;\n}\n.sfp-content-wrapper {\n  position: relative;\n  min-width: 0;\n  max-width: 100%;\n  min-height: 100%;\n}\n\n/* ===== 帖子列表项 ===== */\n.sfp-topic-item {\n  display: block;\n  padding: 9px 14px;\n  border-bottom: 1px solid var(--primary-very-low);\n  color: inherit;\n  cursor: pointer;\n  text-decoration: none;\n  transition: background 0.2s;\n  position: relative;\n  min-width: 0;\n  max-width: 100%;\n  overflow-wrap: break-word;\n  word-break: break-word;\n}\n.sfp-topic-item:visited,\n.sfp-topic-item:hover,\n.sfp-topic-item:focus {\n  color: inherit;\n  text-decoration: none;\n}\n.sfp-topic-item:hover {\n  background: var(--primary-very-low);\n}\n.sfp-topic-item:focus-visible {\n  outline: 2px solid var(--tertiary);\n  outline-offset: -2px;\n}\n.sfp-topic-item.sfp-topic-unavailable {\n  opacity: 0.62;\n}\n.sfp-topic-item.sfp-topic-unavailable .sfp-topic-title-line {\n  text-decoration: line-through;\n}\n.sfp-topic-item.sfp-new-highlight {\n  --sfp-new-highlight-color: var(--tertiary-med-or-tertiary, var(--tertiary));\n  animation: sfp-new-pulse 10s ease-out forwards;\n  position: relative;\n}\n@keyframes sfp-new-pulse {\n  0% {\n    box-shadow: inset 0 0 0 2px var(--sfp-new-highlight-color);\n    background: color-mix(\n      in srgb,\n      var(--sfp-new-highlight-color) 15%,\n      transparent\n    );\n  }\n  100% {\n    box-shadow: inset 0 0 0 0px transparent;\n    background: transparent;\n  }\n}\n\n/* 标题 */\n.sfp-topic-item .sfp-topic-title {\n  font-size: 14px;\n  font-weight: bold;\n  color: var(--primary);\n  line-height: 1.4;\n  margin: 0;\n  word-break: break-word;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  display: -webkit-box;\n  -webkit-line-clamp: 2;\n  -webkit-box-orient: vertical;\n  transition: color 0.2s;\n}\n.sfp-topic-item .sfp-topic-title:hover {\n  color: var(--tertiary);\n}\n.sfp-topic-item.sfp-read .sfp-topic-title {\n  color: var(--title-color--read, var(--primary-medium));\n}\n.sfp-topic-item.sfp-pinned .sfp-topic-title {\n  color: var(--primary-medium);\n}\n.sfp-topic-item .sfp-topic-title-line {\n  display: inline;\n}\n/* 未读圆点 — 标题行内，未读显示 / 已读隐藏 */\n.sfp-topic-item .sfp-unread-dot {\n  display: inline-block;\n  width: 7px;\n  height: 7px;\n  margin-right: 6px;\n  border-radius: 50%;\n  color: var(--tertiary-med-or-tertiary, var(--tertiary));\n  background: currentColor;\n  opacity: 0.75;\n  vertical-align: middle;\n}\n.sfp-topic-item .sfp-unread-dot.sfp-unread-dot--hidden {\n  visibility: hidden;\n}\n\n/* ===== 加载状态 ===== */\n.sfp-loading {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 40px 20px;\n  color: var(--primary-medium);\n  font-size: 13px;\n  gap: 12px;\n}\n.sfp-spinner {\n  width: 28px;\n  height: 28px;\n  border: 3px solid var(--primary-low);\n  border-top-color: var(--tertiary);\n  border-radius: 50%;\n  animation: sfp-spin 0.8s linear infinite;\n}\n.sfp-empty {\n  text-align: center;\n  padding: 40px 10px;\n  color: var(--primary-medium);\n  font-size: 13px;\n}\n.sfp-load-more {\n  padding: 14px 10px;\n  text-align: center;\n  font-size: 12px;\n  color: var(--primary-medium);\n  cursor: pointer;\n  transition: color 0.2s;\n}\n.sfp-load-more-error {\n  display: flex;\n  justify-content: center;\n  align-items: center;\n  gap: 8px;\n  cursor: default;\n}\n.sfp-load-more-error .sfp-load-more-retry {\n  padding: 4px 10px;\n  border: none;\n  border-radius: 4px;\n  background: var(--tertiary);\n  color: var(--secondary);\n  cursor: pointer;\n  font-size: 12px;\n}\n.sfp-load-more:hover {\n  color: var(--tertiary);\n}\n.sfp-load-more .sfp-load-more-spinner {\n  display: inline-block;\n  width: 14px;\n  height: 14px;\n  border: 2px solid var(--primary-low);\n  border-top-color: var(--tertiary);\n  border-radius: 50%;\n  animation: sfp-spin 0.8s linear infinite;\n  vertical-align: middle;\n  margin-right: 6px;\n}\n.sfp-no-more {\n  padding: 14px 10px;\n  text-align: center;\n  font-size: 11px;\n  color: var(--primary-low-mid);\n}\n.sfp-load-more-note {\n  padding: 10px 10px 0;\n  text-align: center;\n  font-size: 12px;\n  color: var(--primary-medium);\n}\n.sfp-error {\n  padding: 40px 20px;\n  text-align: center;\n  color: var(--danger);\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  gap: 10px;\n}\n.sfp-error-icon {\n  font-size: 32px;\n}\n.sfp-error-msg {\n  font-size: 14px;\n  font-weight: 600;\n}\n.sfp-error-detail {\n  font-size: 12px;\n  color: var(--primary-medium);\n  word-break: break-word;\n}\n.sfp-error .sfp-retry-btn {\n  margin-top: 6px;\n  padding: 6px 16px;\n  background: var(--tertiary);\n  color: var(--secondary);\n  border: none;\n  border-radius: 4px;\n  cursor: pointer;\n  font-size: 12px;\n  transition: opacity 0.2s;\n}\n.sfp-error .sfp-retry-btn:hover {\n  opacity: 0.85;\n}\n";
+	var SFP_STYLES = "/* ===== 切换按钮 ===== */\n.sfp-toggle-btn {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 28px;\n  height: 28px;\n  border: none;\n  background: var(--secondary);\n  color: var(--primary-medium);\n  cursor: pointer;\n  border-radius: 6px;\n  padding: 0;\n  margin-left: 6px;\n  vertical-align: middle;\n  transition:\n    color 0.2s,\n    background 0.2s;\n  flex-shrink: 0;\n}\n.sfp-toggle-btn:hover {\n  color: var(--primary);\n  background: var(--primary-low);\n}\n.sfp-toggle-btn.active {\n  color: var(--secondary);\n  background: var(--tertiary);\n}\n.sfp-toggle-btn svg {\n  width: 18px;\n  height: 18px;\n  fill: currentColor;\n}\n.home-logo-wrapper-outlet .title {\n  display: flex;\n  align-items: center;\n  gap: 2px;\n}\n\n/* ===== 侧边栏 Feed 模式 ===== */\n.sidebar-wrapper:has(> .sidebar-container.sfp-feed-mode) {\n  overflow-x: hidden !important;\n}\n.sidebar-container.sfp-feed-mode {\n  overflow-x: hidden !important;\n}\n.sidebar-container.sfp-feed-mode .sfp-feed-container,\n.sidebar-container.sfp-feed-mode .sfp-feed-container * {\n  box-sizing: border-box;\n}\n/* 隐藏所有非 feed 的直接子元素 */\n.sidebar-container.sfp-feed-mode > :not(.sfp-feed-container):not(.sfp-resizer) {\n  display: none !important;\n}\n/* 显式隐藏常见 sidebar 组件（嵌套情况兜底） */\n.sidebar-container.sfp-feed-mode .sidebar-sections,\n.sidebar-container.sfp-feed-mode .sidebar-footer-container,\n.sidebar-container.sfp-feed-mode .sidebar-footer-wrapper,\n.sidebar-container.sfp-feed-mode .sidebar-footer,\n.sidebar-container.sfp-feed-mode .sidebar-custom-sections,\n.sidebar-container.sfp-feed-mode .sidebar-section-wrapper,\n.sidebar-container.sfp-feed-mode .sidebar-section-header,\n.sidebar-container.sfp-feed-mode .sidebar-section-link-wrapper {\n  display: none !important;\n}\n.sidebar-container.sfp-feed-mode .sfp-feed-container {\n  display: flex;\n  flex-direction: column;\n  position: relative;\n  width: 100%;\n  min-width: 0;\n  height: 100%;\n  overflow: hidden;\n  max-width: 100%;\n}\n.sidebar-wrapper.sfp-width-animating,\n.sidebar-container.sfp-width-animating,\n#d-sidebar.sfp-width-animating {\n  transition:\n    width 220ms ease,\n    max-width 220ms ease;\n}\n\n/* ===== 拖拽调整宽度 ===== */\n.sfp-resizer {\n  position: absolute;\n  top: 0;\n  right: -2px;\n  width: 5px;\n  height: 100%;\n  cursor: ew-resize;\n  z-index: 10001;\n  transition: background 0.2s;\n}\n.sfp-resizer:hover,\n.sfp-resizer.sfp-resizing {\n  background: var(--tertiary);\n}\n\n/* ===== Feed Header ===== */\n.sfp-feed-header {\n  position: relative;\n  flex-shrink: 0;\n  padding: 8px 12px;\n  border-bottom: 1px solid var(--primary-low);\n  display: flex;\n  flex-wrap: wrap;\n  gap: 6px;\n  align-items: center;\n  overflow: visible;\n}\n.sfp-feed-header .sfp-header-spacer {\n  flex: 1 1 auto;\n  min-width: 8px;\n}\n.sfp-feed-header .sfp-refresh-btn,\n.sfp-feed-header .sfp-settings-btn {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 28px;\n  height: 28px;\n  border: none;\n  background: var(--primary-very-low);\n  color: var(--primary-medium);\n  cursor: pointer;\n  border-radius: 6px;\n  padding: 0;\n  flex-shrink: 0;\n  transition:\n    color 0.2s,\n    background 0.2s;\n}\n.sfp-feed-header .sfp-refresh-btn:hover,\n.sfp-feed-header .sfp-settings-btn:hover,\n.sfp-settings-wrap.open .sfp-settings-btn {\n  color: var(--tertiary);\n  background: var(--primary-low);\n}\n.sfp-feed-header .sfp-refresh-btn.spinning svg {\n  animation: sfp-spin 0.6s linear infinite;\n}\n.sfp-feed-header .sfp-refresh-btn.spinning {\n  color: var(--tertiary);\n  background: var(--primary-low);\n}\n.sfp-feed-header\n  .sfp-refresh-btn.sfp-back-top-enter:not(.sfp-has-incoming-count)\n  svg {\n  animation: sfp-back-top-enter 0.18s ease;\n}\n.sfp-feed-header .sfp-refresh-btn .sfp-refresh-count {\n  display: inline-block;\n  min-width: 3ch;\n  color: var(--tertiary);\n  font-size: 13px;\n  font-weight: 700;\n  line-height: 1;\n  text-align: center;\n  white-space: nowrap;\n}\n@keyframes sfp-spin {\n  from {\n    transform: rotate(0deg);\n  }\n  to {\n    transform: rotate(360deg);\n  }\n}\n@keyframes sfp-back-top-enter {\n  from {\n    opacity: 0;\n    transform: translateY(8px);\n  }\n  to {\n    opacity: 1;\n    transform: translateY(0);\n  }\n}\n.sfp-feed-header .sfp-refresh-btn svg,\n.sfp-feed-header .sfp-settings-btn svg {\n  width: 16px;\n  height: 16px;\n  fill: currentColor;\n}\n.sfp-settings-btn {\n  position: absolute;\n  top: 0;\n  right: 0;\n  z-index: 2;\n  gap: 3px;\n  flex-direction: column;\n}\n.sfp-settings-line {\n  width: 14px;\n  height: 2px;\n  border-radius: 2px;\n  background: currentColor;\n  transition:\n    transform 0.28s ease,\n    opacity 0.2s ease;\n  transform-origin: center;\n}\n.sfp-settings-wrap.open .sfp-settings-line-1 {\n  transform: translateY(5px) rotate(45deg);\n}\n.sfp-settings-wrap.open .sfp-settings-line-2 {\n  opacity: 0;\n  transform: scaleX(0);\n}\n.sfp-settings-wrap.open .sfp-settings-line-3 {\n  transform: translateY(-5px) rotate(-45deg);\n}\n.sfp-settings-wrap {\n  position: relative;\n  width: 28px;\n  height: 28px;\n  flex-shrink: 0;\n  overflow: visible;\n}\n.sfp-settings-shell {\n  position: absolute;\n  top: 0;\n  right: 0;\n  width: 28px;\n  height: 28px;\n  background: transparent;\n  border: none;\n  border-radius: 6px;\n  box-shadow: none;\n  z-index: 10003;\n  overflow: hidden;\n  transition:\n    width 0.36s cubic-bezier(0.25, 1, 0.5, 1),\n    height 0.36s cubic-bezier(0.25, 1, 0.5, 1),\n    border-radius 0.24s ease,\n    background 0.2s ease;\n}\n.sfp-settings-wrap.open .sfp-settings-shell {\n  width: 204px;\n  height: var(--sfp-settings-shell-height, 128px);\n  overflow: visible;\n  background: var(--secondary);\n  border: 1px solid var(--primary-low);\n  border-radius: 8px;\n  box-shadow: 0 8px 24px color-mix(in srgb, var(--primary) 14%, transparent);\n}\n.sfp-settings-panel {\n  box-sizing: border-box;\n  width: 204px;\n  padding: 36px 10px 8px 10px;\n  opacity: 0;\n  visibility: hidden;\n  transform: translateY(-8px);\n  pointer-events: none;\n  transition:\n    opacity 0.18s ease,\n    transform 0.18s ease,\n    visibility 0.18s;\n}\n.sfp-settings-wrap.open .sfp-settings-panel {\n  opacity: 1;\n  visibility: visible;\n  transform: translateY(0);\n  pointer-events: auto;\n  transition:\n    opacity 0.26s ease 0.12s,\n    transform 0.26s ease 0.12s,\n    visibility 0.26s 0.12s;\n}\n.sfp-setting-row {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) auto;\n  align-items: center;\n  column-gap: 8px;\n  font-size: 12px;\n  color: var(--primary);\n  line-height: 1.3;\n  padding: 4px 0;\n}\n.sfp-setting-label {\n  display: inline-flex;\n  align-items: center;\n  gap: 4px;\n  min-width: 0;\n  white-space: nowrap;\n}\n.sfp-setting-help-wrap {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 14px;\n  height: 14px;\n  flex: 0 0 14px;\n  pointer-events: none;\n}\n.sfp-setting-help {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 14px;\n  height: 14px;\n  box-sizing: border-box;\n  appearance: none;\n  border: none;\n  background: transparent;\n  color: var(--primary-medium);\n  cursor: help;\n  padding: 0;\n  pointer-events: auto;\n}\n.sfp-setting-help svg {\n  width: 13px;\n  height: 13px;\n  display: block;\n  fill: currentColor;\n  pointer-events: none;\n}\n.sfp-setting-help:hover {\n  color: var(--tertiary);\n  outline: none;\n}\n.sfp-help-tooltip {\n  position: fixed;\n  z-index: 10004;\n  width: 178px;\n  max-width: calc(100vw - 32px);\n  padding: 8px 9px;\n  border: 1px solid var(--primary-low);\n  border-radius: 6px;\n  background: var(--secondary);\n  box-shadow: 0 8px 22px color-mix(in srgb, var(--primary) 16%, transparent);\n  color: var(--primary);\n  font-size: 12px;\n  font-weight: 400;\n  line-height: 1.45;\n  text-align: left;\n  white-space: normal;\n  opacity: 0;\n  pointer-events: none;\n  transform: translateY(-4px);\n  transition:\n    opacity 0.16s ease,\n    transform 0.16s ease;\n}\n.sfp-help-tooltip.visible {\n  opacity: 1;\n  transform: translateY(0);\n}\n.sfp-setting-row input[type=\"checkbox\"] {\n  flex-shrink: 0;\n  margin: 0;\n}\n.sfp-setting-interval {\n  display: none;\n  grid-template-columns: minmax(0, 1fr) 58px auto;\n  align-items: center;\n  column-gap: 6px;\n  margin-top: 6px;\n  font-size: 12px;\n  color: var(--primary-medium);\n}\n.sfp-setting-interval.visible {\n  display: grid;\n}\n.sfp-setting-row.hidden,\n.sfp-setting-interval.hidden {\n  display: none;\n}\n.sfp-setting-interval input {\n  width: 58px;\n  height: 26px;\n  padding: 2px 6px;\n  border: 1px solid var(--primary-low);\n  border-radius: 4px;\n  background: var(--secondary);\n  color: var(--primary);\n  font-size: 12px;\n}\n\n/* ===== 自定义下拉 ===== */\n.sfp-custom-select {\n  position: relative;\n  flex-shrink: 0;\n}\n.sfp-custom-select-btn {\n  display: inline-flex;\n  align-items: center;\n  gap: 4px;\n  padding: 4px 10px;\n  font-size: 12px;\n  height: 28px;\n  border: none;\n  background: var(--primary-very-low);\n  color: var(--primary);\n  border-radius: 6px;\n  cursor: pointer;\n  white-space: nowrap;\n  user-select: none;\n  transition:\n    background 0.2s,\n    color 0.2s;\n}\n.sfp-custom-select-btn:hover {\n  background: var(--primary-low);\n}\n.sfp-custom-select-btn::after {\n  content: \"\";\n  width: 0;\n  height: 0;\n  border-left: 4px solid transparent;\n  border-right: 4px solid transparent;\n  border-top: 5px solid currentColor;\n}\n.sfp-custom-select-dropdown {\n  position: absolute;\n  top: calc(100% + 4px);\n  left: 0;\n  min-width: 100%;\n  background: var(--secondary);\n  border: 1px solid var(--primary-low);\n  border-radius: 6px;\n  box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 10%, transparent);\n  z-index: 10002;\n  display: none;\n  overflow: hidden;\n}\n.sfp-custom-select.open .sfp-custom-select-dropdown {\n  display: block;\n}\n.sfp-custom-select-option {\n  display: block;\n  width: 100%;\n  padding: 6px 14px;\n  font-size: 12px;\n  border: none;\n  background: none;\n  color: var(--primary);\n  cursor: pointer;\n  text-align: left;\n  white-space: nowrap;\n  transition: background 0.15s;\n}\n.sfp-custom-select-option:hover {\n  background: var(--primary-very-low);\n}\n.sfp-custom-select-option.selected {\n  color: var(--tertiary);\n  font-weight: 600;\n}\n\n/* ===== 分类标签栏 ===== */\n.sfp-tab-shell {\n  position: relative;\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) 36px;\n  align-items: stretch;\n  width: 100%;\n  min-width: 0;\n  max-width: 100%;\n  border-bottom: 1px solid var(--primary-low);\n  flex-shrink: 0;\n  background: var(--d-content-background, var(--secondary));\n}\n.sfp-tab-bar {\n  display: flex;\n  gap: 8px;\n  overflow-x: auto;\n  overflow-y: hidden;\n  -webkit-overflow-scrolling: touch;\n  scrollbar-width: none;\n  width: 100%;\n  min-width: 0;\n  max-width: 100%;\n  padding: 8px 12px;\n  margin: 0;\n  flex-shrink: 0;\n  background: transparent;\n}\n.sfp-tab-bar::-webkit-scrollbar {\n  display: none;\n}\n.sfp-tab-item {\n  display: inline-flex;\n  align-items: center;\n  gap: 3px;\n  padding: 4px 12px;\n  font-size: 13px;\n  color: var(--primary-medium);\n  cursor: pointer;\n  white-space: nowrap;\n  border-radius: 16px;\n  background: var(--primary-very-low);\n  transition: all 0.2s;\n  border: 1px solid transparent;\n  flex-shrink: 0;\n  user-select: none;\n}\n.sfp-tab-item:hover {\n  color: var(--primary);\n  background: var(--primary-low);\n}\n.sfp-tab-item.active {\n  color: var(--secondary);\n  background: var(--tertiary);\n  border-color: var(--tertiary);\n}\n.sfp-tab-item svg {\n  width: 12px;\n  height: 12px;\n  fill: currentColor;\n  flex-shrink: 0;\n}\n.sfp-category-color-marker {\n  width: 0.72em;\n  height: 0.72em;\n  border-radius: 50%;\n  background: var(--sfp-category-marker-color, currentColor);\n  box-shadow: inset 0 0 0 1px\n    color-mix(in srgb, var(--primary) 12%, transparent);\n  flex: 0 0 auto;\n}\n.sfp-tab-more-btn {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 36px;\n  min-width: 36px;\n  padding: 0;\n  border: none;\n  border-left: 1px solid var(--primary-low);\n  background: var(--d-content-background, var(--secondary));\n  color: var(--primary-medium);\n  cursor: pointer;\n  transition:\n    background 0.2s,\n    color 0.2s;\n}\n.sfp-tab-more-btn:hover,\n.sfp-tab-shell.open .sfp-tab-more-btn {\n  background: var(--primary-very-low);\n  color: var(--primary);\n}\n.sfp-tab-more-btn svg {\n  width: 16px;\n  height: 16px;\n  fill: currentColor;\n}\n.sfp-tab-panel {\n  position: absolute;\n  top: 100%;\n  right: 8px;\n  left: 8px;\n  display: none;\n  padding: 10px;\n  max-height: min(58vh, 420px);\n  overflow-y: auto;\n  background: var(--secondary);\n  border: 1px solid var(--primary-low);\n  border-radius: 8px;\n  box-shadow: 0 10px 28px color-mix(in srgb, var(--primary) 16%, transparent);\n  z-index: 10002;\n}\n.sfp-tab-shell.open .sfp-tab-panel {\n  display: block;\n}\n.sfp-tab-panel-header {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 8px;\n  margin-bottom: 8px;\n  font-size: 12px;\n  color: var(--primary-medium);\n  line-height: 1.3;\n}\n.sfp-tab-panel-title {\n  display: inline-flex;\n  align-items: center;\n  gap: 6px;\n  min-width: 0;\n}\n.sfp-tab-panel-title svg {\n  width: 13px;\n  height: 13px;\n  fill: currentColor;\n  flex-shrink: 0;\n}\n.sfp-tab-panel-close {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 24px;\n  height: 24px;\n  padding: 0;\n  border: none;\n  border-radius: 4px;\n  background: transparent;\n  color: var(--primary-medium);\n  cursor: pointer;\n}\n.sfp-tab-panel-close:hover {\n  background: var(--primary-very-low);\n  color: var(--primary);\n}\n.sfp-tab-grid {\n  display: grid;\n  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));\n  gap: 6px;\n}\n.sfp-tab-grid-item {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  gap: 5px;\n  min-width: 0;\n  min-height: 32px;\n  padding: 6px 8px;\n  border: 1px solid transparent;\n  border-radius: 6px;\n  background: var(--primary-very-low);\n  color: var(--primary-medium);\n  cursor: pointer;\n  font-size: 12px;\n  line-height: 1.2;\n  text-align: center;\n  user-select: none;\n  transition:\n    background 0.15s,\n    border-color 0.15s,\n    color 0.15s,\n    opacity 0.15s;\n}\n.sfp-tab-grid-item svg {\n  width: 12px;\n  height: 12px;\n  fill: currentColor;\n  flex: 0 0 auto;\n}\n.sfp-tab-grid-item .sfp-category-color-marker {\n  width: 0.75em;\n  height: 0.75em;\n}\n.sfp-tab-grid-item span {\n  min-width: 0;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n.sfp-tab-grid-item:hover {\n  background: var(--primary-low);\n  color: var(--primary);\n}\n.sfp-tab-grid-item.active {\n  background: var(--tertiary);\n  border-color: var(--tertiary);\n  color: var(--secondary);\n}\n.sfp-tab-grid-item.dragging {\n  opacity: 0.45;\n}\n.sfp-tab-grid-item.drop-target {\n  border-color: var(--tertiary);\n  box-shadow: inset 0 0 0 1px var(--tertiary);\n}\n\n/* ===== 筛选栏 ===== */\n.sfp-filter-bar {\n  position: relative;\n  z-index: 3;\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  width: 100%;\n  min-width: 0;\n  max-width: 100%;\n  padding: 8px 16px;\n  margin: 0;\n  background: var(--primary-very-low);\n  border-bottom: 1px solid var(--primary-low);\n  font-size: 12px;\n  color: var(--primary-medium);\n  flex-shrink: 0;\n}\n.sfp-filter-item {\n  cursor: pointer;\n  padding: 2px 6px;\n  border-radius: 4px;\n  transition: all 0.2s;\n  user-select: none;\n}\n.sfp-filter-item:hover {\n  color: var(--tertiary);\n  background: var(--primary-low);\n}\n.sfp-filter-item.active {\n  color: var(--secondary);\n  background: var(--tertiary);\n}\n\n/* ===== Feed 滚动区 ===== */\n.sfp-feed-scroll {\n  position: relative;\n  flex: 1;\n  min-width: 0;\n  max-width: 100%;\n  overflow-y: auto;\n  overflow-x: hidden;\n  -webkit-overflow-scrolling: touch;\n  overscroll-behavior-y: contain;\n  touch-action: pan-y pinch-zoom;\n  --scrollbarBg: transparent;\n  --scrollbarThumbBg: var(--d-selected, var(--token-color-surface-hovered));\n  --scrollbarWidth: var(--space-2, 0.5em);\n  scrollbar-gutter: stable;\n  scrollbar-color: var(--scrollbarThumbBg) var(--scrollbarBg);\n}\n.sfp-feed-scroll::-webkit-scrollbar {\n  width: var(--scrollbarWidth);\n}\n.sfp-feed-scroll::-webkit-scrollbar-thumb {\n  background-color: var(--scrollbarThumbBg);\n  border-radius: calc(var(--scrollbarWidth) / 2);\n}\n.sfp-feed-scroll::-webkit-scrollbar-track {\n  background-color: transparent;\n}\n.sfp-content-wrapper {\n  position: relative;\n  min-width: 0;\n  max-width: 100%;\n  min-height: 100%;\n}\n\n/* ===== 帖子列表项 ===== */\n.sfp-topic-item {\n  display: block;\n  padding: 9px 14px;\n  border-bottom: 1px solid var(--primary-very-low);\n  color: inherit;\n  cursor: pointer;\n  text-decoration: none;\n  transition: background 0.2s;\n  position: relative;\n  min-width: 0;\n  max-width: 100%;\n  overflow-wrap: break-word;\n  word-break: break-word;\n}\n.sfp-topic-item:visited,\n.sfp-topic-item:hover,\n.sfp-topic-item:focus {\n  color: inherit;\n  text-decoration: none;\n}\n.sfp-topic-item:hover {\n  background: var(--primary-very-low);\n}\n.sfp-topic-item:focus-visible {\n  outline: 2px solid var(--tertiary);\n  outline-offset: -2px;\n}\n.sfp-topic-item.sfp-topic-unavailable {\n  opacity: 0.62;\n}\n.sfp-topic-item.sfp-topic-unavailable .sfp-topic-title-line {\n  text-decoration: line-through;\n}\n.sfp-topic-item.sfp-new-highlight {\n  --sfp-new-highlight-color: var(--tertiary-med-or-tertiary, var(--tertiary));\n  animation: sfp-new-pulse 10s ease-out forwards;\n  position: relative;\n}\n@keyframes sfp-new-pulse {\n  0% {\n    box-shadow: inset 0 0 0 2px var(--sfp-new-highlight-color);\n    background: color-mix(\n      in srgb,\n      var(--sfp-new-highlight-color) 15%,\n      transparent\n    );\n  }\n  100% {\n    box-shadow: inset 0 0 0 0px transparent;\n    background: transparent;\n  }\n}\n\n/* 标题 */\n.sfp-topic-item .sfp-topic-title {\n  font-size: 14px;\n  font-weight: bold;\n  color: var(--primary);\n  line-height: 1.4;\n  margin: 0;\n  word-break: break-word;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  display: -webkit-box;\n  -webkit-line-clamp: 2;\n  -webkit-box-orient: vertical;\n  transition: color 0.2s;\n}\n.sfp-topic-item .sfp-topic-title:hover {\n  color: var(--tertiary);\n}\n.sfp-topic-item.sfp-read .sfp-topic-title {\n  color: var(--title-color--read, var(--primary-medium));\n}\n.sfp-topic-item.sfp-pinned .sfp-topic-title {\n  color: var(--primary-medium);\n}\n.sfp-topic-item .sfp-topic-title-line {\n  display: inline;\n}\n/* 未读圆点 — 标题行内，未读显示 / 已读隐藏 */\n.sfp-topic-item .sfp-unread-dot {\n  display: inline-block;\n  width: 7px;\n  height: 7px;\n  margin-right: 6px;\n  border-radius: 50%;\n  color: var(--tertiary-med-or-tertiary, var(--tertiary));\n  background: currentColor;\n  opacity: 0.75;\n  vertical-align: middle;\n}\n.sfp-topic-item .sfp-unread-dot.sfp-unread-dot--hidden {\n  visibility: hidden;\n}\n\n/* ===== 加载状态 ===== */\n.sfp-loading {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  padding: 40px 20px;\n  color: var(--primary-medium);\n  font-size: 13px;\n  gap: 12px;\n}\n.sfp-spinner {\n  width: 28px;\n  height: 28px;\n  border: 3px solid var(--primary-low);\n  border-top-color: var(--tertiary);\n  border-radius: 50%;\n  animation: sfp-spin 0.8s linear infinite;\n}\n.sfp-empty {\n  text-align: center;\n  padding: 40px 10px;\n  color: var(--primary-medium);\n  font-size: 13px;\n}\n.sfp-load-more {\n  padding: 14px 10px;\n  text-align: center;\n  font-size: 12px;\n  color: var(--primary-medium);\n  cursor: pointer;\n  transition: color 0.2s;\n}\n.sfp-load-more-error {\n  display: flex;\n  justify-content: center;\n  align-items: center;\n  gap: 8px;\n  cursor: default;\n}\n.sfp-load-more-error .sfp-load-more-retry {\n  padding: 4px 10px;\n  border: none;\n  border-radius: 4px;\n  background: var(--tertiary);\n  color: var(--secondary);\n  cursor: pointer;\n  font-size: 12px;\n}\n.sfp-load-more:hover {\n  color: var(--tertiary);\n}\n.sfp-load-more .sfp-load-more-spinner {\n  display: inline-block;\n  width: 14px;\n  height: 14px;\n  border: 2px solid var(--primary-low);\n  border-top-color: var(--tertiary);\n  border-radius: 50%;\n  animation: sfp-spin 0.8s linear infinite;\n  vertical-align: middle;\n  margin-right: 6px;\n}\n.sfp-no-more {\n  padding: 14px 10px;\n  text-align: center;\n  font-size: 11px;\n  color: var(--primary-low-mid);\n}\n.sfp-load-more-note {\n  padding: 10px 10px 0;\n  text-align: center;\n  font-size: 12px;\n  color: var(--primary-medium);\n}\n.sfp-error {\n  padding: 40px 20px;\n  text-align: center;\n  color: var(--danger);\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  gap: 10px;\n}\n.sfp-error-icon {\n  font-size: 32px;\n}\n.sfp-error-msg {\n  font-size: 14px;\n  font-weight: 600;\n}\n.sfp-error-detail {\n  font-size: 12px;\n  color: var(--primary-medium);\n  word-break: break-word;\n}\n.sfp-error .sfp-retry-btn {\n  margin-top: 6px;\n  padding: 6px 16px;\n  background: var(--tertiary);\n  color: var(--secondary);\n  border: none;\n  border-radius: 4px;\n  cursor: pointer;\n  font-size: 12px;\n  transition: opacity 0.2s;\n}\n.sfp-error .sfp-retry-btn:hover {\n  opacity: 0.85;\n}\n\n/* ===== Base64 解码块 ===== */\n.sfp-b64-wrapper {\n  position: relative;\n  margin: 8px 0;\n}\n.sfp-b64-wrapper pre {\n  margin: 0;\n  white-space: pre-wrap;\n  word-break: break-all;\n}\n.sfp-b64-toolbar {\n  position: absolute;\n  top: 4px;\n  right: 4px;\n  display: flex;\n  gap: 4px;\n}\n.sfp-b64-btn {\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  width: 24px;\n  height: 24px;\n  padding: 0;\n  border: 1px solid var(--primary-low);\n  border-radius: 4px;\n  background: var(--secondary);\n  color: var(--primary-medium);\n  cursor: pointer;\n  transition: color 0.2s, background 0.2s;\n}\n.sfp-b64-btn:hover {\n  color: var(--tertiary);\n  background: var(--primary-low);\n}\n.sfp-b64-btn.sfp-b64-copied {\n  width: auto;\n  padding: 0 8px;\n  color: var(--tertiary);\n  font-size: 12px;\n}\n.sfp-b64-btn svg {\n  width: 14px;\n  height: 14px;\n  fill: none;\n  stroke: currentColor;\n}\n";
 	var instance = null;
 	var menuRegistered = false;
 	function startFeedPanel() {
