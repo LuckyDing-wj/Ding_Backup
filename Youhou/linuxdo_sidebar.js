@@ -6,6 +6,9 @@
 // @description  把 Discourse 原生侧边栏换成极简信息流：列表只显示标题和未读圆点，支持分类标签、排序/时段、已读未读筛选与拖拽调宽
 // @license      MIT
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=linux.do
+// @homepageURL  https://github.com/LuckyDing-wj/Ding_Backup/blob/main/Youhou/linuxdo_sidebar.js
+// @downloadURL  https://raw.githubusercontent.com/LuckyDing-wj/Ding_Backup/main/Youhou/linuxdo_sidebar.js
+// @updateURL    https://raw.githubusercontent.com/LuckyDing-wj/Ding_Backup/main/Youhou/linuxdo_sidebar.js
 // @match        https://linux.do/*
 // @match        https://www.nodeloc.com/*
 // @match        https://forum.chrultrabook.com/*
@@ -82,11 +85,6 @@
 			nextPageNoMatch: "下一页无符合条件的话题",
 			applyIncoming: "应用 {count} 个新的或更新的话题",
 			backToTop: "回到顶部",
-			hot: "热门",
-			pinned: "已置顶",
-			topicUnavailable: "话题异常",
-			topicUnavailableTip: "此话题已从服务器列表中消失，可能被取消公开、隐藏或删除。点击可自行确认实际情况。",
-			closedTitle: "此话题已被关闭；不再接受新回复",
 			loadMore: "加载更多",
 			noMore: "— 已经到底了 —",
 			requestFailed: "请求失败"
@@ -140,11 +138,6 @@
 			nextPageNoMatch: "Next page has no matching topics",
 			applyIncoming: "Apply {count} new or updated topics",
 			backToTop: "Back to top",
-			hot: "Hot",
-			pinned: "Pinned",
-			topicUnavailable: "Unavailable",
-			topicUnavailableTip: "This topic disappeared from the server list; it may be unlisted, hidden, or deleted. Click to check what happened.",
-			closedTitle: "This topic is closed; it no longer accepts replies",
 			loadMore: "Load more",
 			noMore: "No more topics",
 			requestFailed: "Request failed"
@@ -406,13 +399,6 @@
 	function _safeIconName(icon) {
 		return _isSafeIconName(icon) ? icon : "";
 	}
-	function _safeCategoryStyleType(styleType, hasIcon) {
-		return [
-			"icon",
-			"emoji",
-			"square"
-		].includes(styleType || "") ? styleType : hasIcon ? "icon" : "square";
-	}
 	var ORDER_OPTION_DEFS = [
 		{
 			labelKey: "orderActivity",
@@ -654,23 +640,16 @@
 				slug: meta.slug
 			}));
 		}
-		function _normalizeCategoryMeta(raw = {}, parent = null) {
+		function _normalizeCategoryMeta(raw = {}) {
 			const id = Number(raw.id);
 			const icon = _safeIconName(raw.icon || "");
 			return {
 				id,
 				name: raw.name || "",
 				color: _normalizeHexColor(raw.color, "888"),
-				text_color: _normalizeHexColor(raw.text_color, "FFFFFF"),
 				icon,
-				style_type: _safeCategoryStyleType(raw.style_type, !!icon),
 				slug: raw.slug || "",
-				parent_category_id: raw.parent_category_id || null,
-				parent_color: parent ? _normalizeHexColor(parent.color, "888") : null,
-				parent_text_color: parent ? _normalizeHexColor(parent.text_color, "FFFFFF") : null,
-				read_restricted: !!raw.read_restricted,
-				description_text: raw.description_text || raw.description_excerpt || raw.description || "",
-				description_excerpt: raw.description_excerpt || raw.description_text || raw.description || ""
+				parent_category_id: raw.parent_category_id || null
 			};
 		}
 		function _getCategoryMeta(id) {
@@ -717,8 +696,7 @@
 			categories.forEach((cat) => {
 				const id = Number(cat.id);
 				if (!Number.isFinite(id)) return;
-				const parent = cat.parent_category_id ? rawById.get(Number(cat.parent_category_id)) : null;
-				categoryMetaById.set(id, _normalizeCategoryMeta(cat, parent));
+				categoryMetaById.set(id, _normalizeCategoryMeta(cat));
 			});
 			tabCategories = _buildTabCategories(site, navigationCategories, rawById);
 			onChange();
@@ -3633,11 +3611,11 @@
 			set: (key, value) => values.set(keyFor(key), value),
 			delete: (key) => values.delete(keyFor(key)),
 			migrateLegacy() {
-				if (origin !== "https://linux.do") return;
+				if (origin !== LEGACY_LINUXDO_ORIGIN) return;
 				for (const key of SITE_SCOPED_STORAGE_KEYS) {
 					const legacy = values.get(key, STORAGE_MISSING);
-					if (legacy === "__SFP_STORAGE_MISSING__") continue;
-					if (values.get(keyFor(key), "__SFP_STORAGE_MISSING__") === "__SFP_STORAGE_MISSING__") values.set(keyFor(key), legacy);
+					if (legacy === STORAGE_MISSING) continue;
+					if (values.get(keyFor(key), STORAGE_MISSING) === STORAGE_MISSING) values.set(keyFor(key), legacy);
 					values.delete(key);
 				}
 			}
