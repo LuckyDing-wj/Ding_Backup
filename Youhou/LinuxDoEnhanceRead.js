@@ -3,12 +3,12 @@
 // @namespace    https://github.com/LuckyDing-wj/Ding_Backup
 // @version      0.0.1
 // @license      MIT
-// @description  LINUX DO 列表页标题弹窗预览：平铺楼层、点赞/表情、回复、Boost、收藏与图片灯箱
+// @description  LINUX DO 列表页标题弹窗预览与论坛菜单修复：平铺楼层、点赞/表情、回复、Boost、收藏与图片灯箱
 // @author       LuckyDing
 // @match        https://linux.do/*
 // @icon         https://cdn3.ldstatic.com/optimized/4X/6/a/6/6a6affc7b1ce8140279e959d32671304db06d5ab_2_180x180.png
 // @grant        none
-// @run-at       document-idle
+// @run-at       document-start
 // @homepageURL  https://github.com/LuckyDing-wj/Ding_Backup/blob/main/Youhou/LinuxDoEnhanceRead.js
 // @supportURL   https://github.com/LuckyDing-wj/Ding_Backup/issues
 // @downloadURL  https://raw.githubusercontent.com/LuckyDing-wj/Ding_Backup/main/Youhou/LinuxDoEnhanceRead.js
@@ -17,15 +17,129 @@
 
 /*
  * ============ 修改声明 ============
- * 原作者:   Fashion
+ * 原作者:   Fashion / You
  * 原出处:   https://greasyfork.org/scripts/584412
+ *           https://greasyfork.org/scripts/567973
  * 原脚本:   https://update.greasyfork.org/scripts/584412/LinuxDo%20%E5%A2%9E%E5%BC%BA%E9%98%85%E8%AF%BB.user.js
+ *           https://update.greasyfork.org/scripts/567973/linuxdo-dark.user.js
  *
  * 本副本为个人修改自用，保留原作者与原出处版权。
  * 本分支进行个人维护与定制。
  * ============ 修改声明 ============
  */
 
+/* ============ 菜单修复模块（原 linuxdo-dark.js） ============ */
+(function() {
+    'use strict';
+
+    // ========== 修复：通知/用户菜单在点击页面任意位置时反复弹出 ==========
+    // Discourse 的 closeOnClickOutside 在 document 的 pointerdown 上调用菜单的“切换”函数（不是“关闭”）。
+    // 某次关闭菜单时若 Ember 的销毁流程被中断，组件 DOM 已移除，这个监听器却没被清理：
+    // 之后菜单关着时点任意处会把它切开，菜单开着时点面板内部又会把它切关。
+    const pageWindow = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+    const MENU_FIX_TRIGGERS = ['pointerdown', 'keydown'];
+    const HEADER_MENU_GUARDS = [
+        { prop: 'userVisible', toggle: '#current-user', panel: '.user-menu-dropdown-wrapper' },
+        { prop: 'hamburgerVisible', toggle: '.hamburger-dropdown, .header-sidebar-toggle', panel: '.hamburger-dropdown-wrapper' },
+    ];
+    let menuFixInstalled = false;
+
+    function matchesClosest(target, selector) {
+        return typeof target?.closest === 'function' && target.closest(selector) !== null;
+    }
+
+    // 治本：元素已脱离文档的旧 closeOnClickOutside 实例（已随组件销毁、只是监听器残留）不再响应点击
+    function patchCloseOnClickOutside() {
+        const moduleName = 'discourse/modifiers/close-on-click-outside';
+        const requireModule = pageWindow.require;
+        if (typeof requireModule !== 'function' || requireModule.has?.(moduleName) === false) return;
+        const proto = requireModule(moduleName)?.default?.prototype;
+        const descriptor = proto && Object.getOwnPropertyDescriptor(proto, 'check');
+        if (typeof descriptor?.get !== 'function') return; // 实现已变化，交给下面的状态兜底
+        Object.defineProperty(proto, 'check', {
+            configurable: true,
+            enumerable: descriptor.enumerable,
+            get() {
+                const check = descriptor.get.call(this); // 原 @bind getter：返回绑定后的监听器
+                if (typeof check !== 'function') return check;
+                const modifier = this;
+                const guardedCheck = function (event) {
+                    if (modifier.element && !modifier.element.isConnected) return;
+                    return check.call(this, event);
+                };
+                try {
+                    // modify 与 cleanup 都通过 this.check 取监听器，缓存同一个引用才能被正常移除
+                    Object.defineProperty(this, 'check', { configurable: true, writable: true, value: guardedCheck });
+                    return guardedCheck;
+                } catch {
+                    return check;
+                }
+            },
+        });
+    }
+
+    // 兜底：pointerdown 期间合法的变化只有“点外部关闭”，拦截此时的打开，以及点在面板内部时的关闭
+    function guardHeaderMenus(header) {
+        for (const { prop, toggle, panel } of HEADER_MENU_GUARDS) {
+            if (!header || Object.prototype.hasOwnProperty.call(header, prop)) continue;
+            let proto = Object.getPrototypeOf(header);
+            let descriptor;
+            while (proto && !(descriptor = Object.getOwnPropertyDescriptor(proto, prop))) {
+                proto = Object.getPrototypeOf(proto);
+            }
+            if (typeof descriptor?.get !== 'function' || typeof descriptor.set !== 'function') continue;
+            Object.defineProperty(header, prop, {
+                configurable: true,
+                enumerable: descriptor.enumerable,
+                get() {
+                    return descriptor.get.call(this);
+                },
+                set(value) {
+                    const event = pageWindow.event;
+                    if (event?.type === 'pointerdown') {
+                        const visible = Boolean(descriptor.get.call(this));
+                        if ((value && !visible && !matchesClosest(event.target, toggle)) ||
+                            (!value && visible && matchesClosest(event.target, panel))) {
+                            return;
+                        }
+                    }
+                    descriptor.set.call(this, value);
+                },
+            });
+        }
+    }
+
+    // Discourse 启动后安装；最晚在首次按键或按下鼠标的捕获阶段完成，早于 document 上的监听器执行
+    function installMenuFix() {
+        if (menuFixInstalled) return;
+        let container;
+        try {
+            container = pageWindow.Discourse?.__container__;
+        } catch {
+            container = undefined;
+        }
+        if (typeof container?.lookup !== 'function') return;
+        menuFixInstalled = true;
+        for (const type of MENU_FIX_TRIGGERS) pageWindow.removeEventListener(type, installMenuFix, true);
+        try {
+            patchCloseOnClickOutside();
+        } catch (error) {
+            console.warn('[linuxdo-dark] 菜单修复（模块补丁）未生效：', error?.message);
+        }
+        try {
+            guardHeaderMenus(container.lookup('service:header'));
+        } catch (error) {
+            console.warn('[linuxdo-dark] 菜单修复（状态兜底）未生效：', error?.message);
+        }
+    }
+    for (const type of MENU_FIX_TRIGGERS) {
+        pageWindow.addEventListener(type, installMenuFix, { capture: true, passive: true });
+    }
+    pageWindow.addEventListener('load', installMenuFix, { once: true });
+
+})();
+
+/* ============ 弹窗预览模块（原 LinuxDo 增强阅读） ============ */
 (function () {
   'use strict';
 
@@ -37,12 +151,14 @@
   const SEARCH_SEL = '.search-results, .fps-result, .search-menu, .search-menu-container, .search-result-topic';
 
   /* ============ 1. 样式 ============ */
-  const style = document.createElement('style');
+  const LDP_STYLE_ID = 'ldp-enhance-style';
+  const style = document.getElementById(LDP_STYLE_ID) || document.createElement('style');
+  style.id = LDP_STYLE_ID;
   style.textContent = `
     .ldp-overlay{position:fixed;inset:0;z-index:2147483000;display:flex;
       align-items:center;justify-content:center;background:rgba(0,0,0,.55);}
     .ldp-modal{position:relative;display:flex;flex-direction:column;
-      width:90%;max-width:1000px;height:90vh;
+      width:90%;max-width:1000px;height:calc(100vh - 24px);
       border-radius:12px;overflow:hidden;font-size:16px;
       line-height:1.65;background:var(--secondary,#fff);color:var(--primary,#222);
       box-shadow:0 16px 50px rgba(0,0,0,.4);}
@@ -153,6 +269,7 @@
     .ldp-floor{font-size:12px;opacity:.5;margin-left:auto;
       padding-left:8px;white-space:nowrap;}
     .ldp-content img{max-width:100%;height:auto;cursor:zoom-in;border-radius:4px;}
+    .ld-b64{border-bottom:1px dashed rgba(46,204,148,.85);cursor:pointer;word-break:break-all;}
     .ldp-content .ldp-deleted{color:var(--primary-medium,#888);}
     .ldp-content .ldp-spoiler{cursor:pointer;}
     .ldp-content .ldp-spoiler.ldp-spoiler-blurred{
@@ -303,7 +420,10 @@
     .ldp-emoji-opt:hover{background:var(--primary-low,#f0f0f0);}
     .ldp-emoji-opt img{width:24px;height:24px;display:block;}
   `;
-  document.head.appendChild(style);
+  const mountStyle = () => { (document.head || document.documentElement).appendChild(style); };
+  if (document.head) mountStyle();
+  else if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountStyle, { once: true });
+  else mountStyle();
 
   /* 图标 */
   const ICONS = {
@@ -323,6 +443,7 @@
   const escAttr = (s) => esc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
   function reportError(scope, err) {
+    if (err && err.name === 'AbortError') return;
     const message = (err && err.message) || String(err || '未知错误');
     console.warn(`[LinuxDo 增强阅读] ${scope}:`, message);
   }
@@ -441,7 +562,7 @@
     try {
       const s = await fetchJSON(`${BASE}/session/current.json`);
       ME_USERNAME = (s.current_user && s.current_user.username) || '';
-    } catch (e) { ME_USERNAME = ''; }
+    } catch (e) { if (!e || e.name !== 'AbortError') ME_USERNAME = ''; }
     return ME_USERNAME;
   }
 
@@ -478,23 +599,17 @@
     return (info || likeInfo(p)).count;
   }
 
-  /* ============ 2.1 通知链接解析 ============ */
+  /* ============ 2.1 话题链接解析 ============ */
   /**
-   * 解析当前页面 URL 或传入的 href，提取 topicId 和可选的 targetPostNumber。
-   * 支持格式：
-   *   /t/slug/123           → topicId=123, target=null（首次/已读跳转）
-   *   /t/slug/123/456       → topicId=123, target=456
-   *   /t/123                → topicId=123
-   *   /t/123/456            → topicId=123, target=456
+   * 解析话题链接中的 topicId，楼层号一律忽略。
+   * 支持 /t/123、/t/123/456、/t/slug/123、/t/slug/123/456
    */
   function parseTopicHref(href) {
     if (!href) return null;
-    // 先匹配无 slug：/t/id  或  /t/id/postNumber
-    let m = href.match(/\/t\/(\d+)(?:\/(\d+))?/);
-    if (m) return { topicId: m[1], targetPostNumber: m[2] ? +m[2] : null };
-    // 再匹配带 slug：slug 不能以数字开头，避免吃掉 /t/123/456 的楼号
-    m = href.match(/\/t\/[^/\d][^/]*\/(\d+)(?:\/(\d+))?/);
-    if (m) return { topicId: m[1], targetPostNumber: m[2] ? +m[2] : null };
+    let m = href.match(/\/t\/(\d+)(?:\/\d+)?/);
+    if (m) return { topicId: m[1] };
+    m = href.match(/\/t\/[^/\d][^/]*\/(\d+)(?:\/\d+)?/);
+    if (m) return { topicId: m[1] };
     return null;
   }
 
@@ -502,20 +617,37 @@
   let emojiDataCache = null;
   let emojiDataLoading = null;
   let _emojiSet = 'twemoji';
-  try {
-    const img = document.querySelector('img.emoji');
-    if (img) { const m = img.src.match(/\/images\/emoji\/([^/]+)\//); if (m) _emojiSet = m[1]; }
-  } catch {}
+  let emojiSetProbed = false;
+  let activeEmojiPanel = null;
+  let activeEmojiCloser = null;
+  let activeEmojiTrigger = null;
+
+  function closeEmojiPanel() {
+    if (activeEmojiCloser) {
+      document.removeEventListener('mousedown', activeEmojiCloser, true);
+      activeEmojiCloser = null;
+    }
+    if (activeEmojiPanel) { activeEmojiPanel.remove(); activeEmojiPanel = null; }
+    if (activeEmojiTrigger) { activeEmojiTrigger._ldpEmojiPanel = null; activeEmojiTrigger = null; }
+  }
+
   const emojiUrlMap = new Map();
   function emojiUrl(name) {
     if (emojiUrlMap.has(name)) return emojiUrlMap.get(name);
+    if (!emojiSetProbed) {
+      emojiSetProbed = true;
+      try {
+        const img = document.querySelector('img.emoji');
+        if (img) { const m = img.src.match(/\/images\/emoji\/([^/]+)\//); if (m) _emojiSet = m[1]; }
+      } catch {}
+    }
     return `https://cdn.ldstatic.com/images/emoji/${_emojiSet}/${name}.png`;
   }
-  async function fetchEmojiData() {
+  async function fetchEmojiData(signal) {
     if (emojiDataCache) return emojiDataCache;
     if (emojiDataLoading) return emojiDataLoading;
     emojiDataLoading = (async () => {
-      const res = await fetch(`${BASE}/emojis.json`, { credentials: 'include' });
+      const res = await fetch(`${BASE}/emojis.json`, { credentials: 'include', signal });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const raw = await res.json();
       const groups = {};
@@ -527,7 +659,8 @@
             let url = e.url;
             if (url.startsWith('//')) url = 'https:' + url;
             else if (!url.startsWith('http')) url = BASE + url;
-            emojiUrlMap.set(name, url.replace('https://linux.do', 'https://cdn.ldstatic.com'));
+            emojiUrlMap.set(name, url.startsWith(BASE)
+                ? 'https://cdn.ldstatic.com' + url.slice(BASE.length) : url);
           }
           return name;
         });
@@ -539,10 +672,11 @@
     return emojiDataLoading;
   }
 
-  function buildEmojiPanel(onPick) {
+  function buildEmojiPanel(onPick, signal) {
     const panel = document.createElement('div');
     panel.className = 'ldp-emoji-panel';
-    fetchEmojiData().then((groups) => {
+    fetchEmojiData(signal).then((groups) => {
+      if (!panel.isConnected) return;
       Object.values(groups).forEach((names) => names.forEach((name) => {
         const btn = document.createElement('button');
         btn.type = 'button';
@@ -560,9 +694,8 @@
     }).catch(() => {});
     return panel;
   }
-  function toggleEmojiPanel(triggerBtn, inputEl) {
-    const existing = triggerBtn._ldpEmojiPanel;
-    if (existing && existing.parentNode) { existing.remove(); triggerBtn._ldpEmojiPanel = null; return; }
+  function toggleEmojiPanel(triggerBtn, inputEl, signal) {
+    if (activeEmojiPanel) { closeEmojiPanel(); return; }
     const panel = buildEmojiPanel((code) => {
       if (inputEl.tagName === 'TEXTAREA' || inputEl.tagName === 'INPUT') {
         const start = inputEl.selectionStart || 0;
@@ -577,14 +710,20 @@
         inputEl.selectionStart = inputEl.selectionEnd = start + insertion.length;
         inputEl.focus();
       }
-      panel.remove();
-      triggerBtn._ldpEmojiPanel = null;
-    });
+      closeEmojiPanel();
+    }, signal);
+    activeEmojiPanel = panel;
+    activeEmojiTrigger = triggerBtn;
     triggerBtn._ldpEmojiPanel = panel;
     panel._ldpTrigger = triggerBtn;
     placePanel(panel, triggerBtn);
     setTimeout(() => {
-      const closer = (e) => { if (panel.contains(e.target) || e.target === triggerBtn) return; panel.remove(); triggerBtn._ldpEmojiPanel = null; document.removeEventListener('mousedown', closer, true); };
+      if (!panel.isConnected || activeEmojiPanel !== panel) return;
+      const closer = (e) => {
+        if (panel.contains(e.target) || e.target === triggerBtn) return;
+        closeEmojiPanel();
+      };
+      activeEmojiCloser = closer;
       document.addEventListener('mousedown', closer, true);
     }, 0);
   }
@@ -592,13 +731,13 @@
   /* ============ 2.3 Boost 气泡渲染 ============ */
   function boostBubbleHtml(b) {
     const avatar = b && b.user && b.user.avatar_template
-        ? BASE + b.user.avatar_template.replace('{size}', '36') : '';
+        ? BASE + b.user.avatar_template.replace('{size}', '32') : '';
     const profileUrl = userProfileUrl(b && b.user && b.user.username);
     const profileLabel = userProfileLabel(b && b.user && b.user.username,
         b && b.user && (b.user.name || b.user.display_name));
     return (avatar ? (profileUrl
-        ? `<a class="ldp-boost-avatar-link" href="${profileUrl}" target="_blank" rel="noopener noreferrer" title="${escAttr(profileLabel)}"><img class="ldp-b-avatar" src="${avatar}" alt=""></a>`
-        : `<img class="ldp-b-avatar" src="${avatar}" alt="">`) : '') +
+        ? `<a class="ldp-boost-avatar-link" href="${profileUrl}" target="_blank" rel="noopener noreferrer" title="${escAttr(profileLabel)}"><img class="ldp-b-avatar" src="${avatar}" alt="" loading="lazy" decoding="async"></a>`
+        : `<img class="ldp-b-avatar" src="${avatar}" alt="" loading="lazy" decoding="async">`) : '') +
         `<p>${(b && b.cooked) || ''}</p>` +
         (b && b.can_delete ? `<button class="ldp-boost-del" title="删除此Boost">×</button>` : '');
   }
@@ -756,20 +895,23 @@
     const postNumber = +postNode.dataset.postNumber;
     const post = findPostForNode(postNode, ctx);
     if (clickedEl) clickedEl.disabled = true;
+    let succeeded = false;
     try {
       const updated = await apiSend(
           `${BASE}/discourse-reactions/posts/${postId}/custom-reactions/${encodeURIComponent(name)}/toggle`,
-          'PUT');
+          'PUT', null, null, ctx && ctx.signal);
+      if (ctx.scrollRoot && !ctx.scrollRoot.isConnected) return null;
       const target = post || updated;
       if (post) Object.assign(post, updated);
       if (ctx.postMap) ctx.postMap.set(postNumber, target);
       updatePostReactions(postNode, target);
+      succeeded = true;
       return target;
     } catch (err) {
       reportError('反应操作失败', err);
       return null;
     } finally {
-      if (clickedEl) clickedEl.disabled = false;
+      if (!succeeded && clickedEl) clickedEl.disabled = false;
     }
   }
 
@@ -814,8 +956,10 @@
 
 
   /* ============ 3. 单图灯箱 ============ */
+  let activeLightboxClose = null;
   function openLightbox(src) {
     if (!src) return;
+    if (activeLightboxClose) activeLightboxClose();
     const lb = document.createElement('div');
     lb.className = 'ldp-lightbox';
     lb.innerHTML = `
@@ -824,7 +968,12 @@
     const stage = lb.querySelector('.ldp-lb-stage');
     const img = lb.querySelector('.ldp-lb-stage img');
     img.src = src;
-    const close = () => { lb.remove(); document.removeEventListener('keydown', onKey); };
+    const close = () => {
+      if (activeLightboxClose === close) activeLightboxClose = null;
+      lb.remove();
+      document.removeEventListener('keydown', onKey);
+    };
+    activeLightboxClose = close;
     function onKey(e) { if (e.key === 'Escape') close(); }
     lb.querySelector('.ldp-lb-x').addEventListener('click', close);
     img.addEventListener('click', (e) => { e.stopPropagation(); close(); });
@@ -844,22 +993,69 @@
     return imgEl.getAttribute('data-large-src') || imgEl.currentSrc || imgEl.src;
   }
 
-
-
-
-
-
   /* ============ 4. 渲染单条 ============ */
   /**
    * renderPost：渲染单个帖子节点。
    * @param {object} p - 帖子数据
    * @param {object} ctx - 弹窗上下文
    */
+  function fallbackDecodeToken(token) {
+    const s = String(token || '').replace(/\s+/g, '');
+    if (s.length < 16 || !/^[A-Za-z0-9+/_-]+={0,2}$/.test(s)) return null;
+    try {
+      let normalized = s.replace(/-/g, '+').replace(/_/g, '/');
+      while (normalized.length % 4) normalized += '=';
+      const bin = atob(normalized);
+      if (bin.length < 4) return null;
+      const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
+      const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      if (text.length < 4 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(text)) return null;
+      const readable = (text.match(/[\u4e00-\u9fa5A-Za-z0-9\s，。！？,.!?:/\\#&@_\-]/g) || '').length;
+      if (readable / text.length < 0.85) return null;
+      return text;
+    } catch (e) { return null; }
+  }
+
+  function fallbackDecodeContent(root) {
+    if (!root) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    const targets = [];
+    let n;
+    while ((n = walker.nextNode())) {
+      const parent = n.parentElement;
+      if (!parent || parent.closest('a, textarea, input, script, style, .ld-b64')) continue;
+      if (/[A-Za-z0-9+/_-]{16,}={0,2}/.test(n.nodeValue || '')) targets.push(n);
+    }
+    const tokenRe = /[A-Za-z0-9+/_-]{16,}={0,2}/g;
+    targets.forEach((node) => {
+      const text = node.nodeValue || '';
+      tokenRe.lastIndex = 0;
+      const frag = document.createDocumentFragment();
+      let last = 0, m, hit = 0;
+      while ((m = tokenRe.exec(text)) !== null) {
+        const decoded = fallbackDecodeToken(m[0]);
+        if (decoded == null) continue;
+        frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        const span = document.createElement('span');
+        span.className = 'ld-b64';
+        span.title = '已自动解码';
+        span.textContent = decoded;
+        frag.appendChild(span);
+        last = m.index + m[0].length;
+        hit++;
+      }
+      if (hit) {
+        frag.appendChild(document.createTextNode(text.slice(last)));
+        node.parentNode.replaceChild(frag, node);
+      }
+    });
+  }
+
   function renderPost(p, ctx) {
     const isDeleted = !p.username || !p.cooked || p.deleted_at || p.user_deleted === true;
     const username = p.username || '';
     const displayName = p.name || p.display_name || p.display_username || username;
-    const avatar = p.avatar_template ? BASE + p.avatar_template.replace('{size}', '48') : '';
+    const avatar = p.avatar_template ? BASE + p.avatar_template.replace('{size}', '32') : '';
     const like = likeInfo(p);
     const { canAct } = like;
     const acted = likeActed(p, like);
@@ -877,7 +1073,10 @@
         const href = a.getAttribute('href') || '';
         const isImageLink = /\.(png|jpe?g|gif|webp|bmp|avif)(\?|#|$)/i.test(href);
         const isLightbox = a.classList.contains('lightbox');
-        if (!isImageLink && !isLightbox && !a.getAttribute('target')) a.setAttribute('target', '_blank');
+        if (!isImageLink && !isLightbox && !a.getAttribute('target')) {
+          a.setAttribute('target', '_blank');
+          a.setAttribute('rel', 'noopener noreferrer');
+        }
       });
       return tmp.innerHTML;
     })();
@@ -926,21 +1125,25 @@
       </div>
       ${actionsHtml}`;
     try {
+      const contentEl = node.querySelector('.ldp-content');
       const b64 = window.__LDB64__;
       if (b64 && b64.flags && b64.flags.b64 && typeof b64.processCooked === 'function') {
-        const contentEl = node.querySelector('.ldp-content');
         b64.processCooked(contentEl);
         if (typeof b64.renderDecoded === 'function') {
           contentEl.querySelectorAll('.ld-b64.ld-b64-raw').forEach((span) => b64.renderDecoded(span));
         }
+      } else if (!b64) {
+        fallbackDecodeContent(contentEl);
       }
     } catch (e) { console.warn('[LinuxDo 增强阅读] 密文自解失败:', e); }
     prepareSpoilers(node.querySelector('.ldp-content'));
-    if (reactionsHtml) fetchEmojiData().then(() => refreshEmojiUrls(node)).catch(() => {});
+    if (reactionsHtml) {
+      fetchEmojiData(ctx && ctx.signal)
+        .then(() => { if (node.isConnected) refreshEmojiUrls(node); })
+        .catch(() => {});
+    }
     return node;
   }
-
-
 
   /* ============ 5. 回复框 ============ */
   function ensureReplyBox(post) {
@@ -956,8 +1159,6 @@
     return box;
   }
 
-
-
   /* ============ 6. 楼层点赞 ============ */
   async function handleLikeClick(postNode, ctx, likeBtn, postId) {
     closeReactionPanel();
@@ -967,22 +1168,25 @@
     const info = likeInfo(post || {});
     const acted = likeActed(post, info);
     likeBtn.disabled = true;
+    let succeeded = false;
     try {
       if (!acted) {
-        await apiSend(`${BASE}/post_actions`, 'POST', { id: postId, post_action_type_id: 2, flag_topic: false });
+        await apiSend(`${BASE}/post_actions`, 'POST', { id: postId, post_action_type_id: 2, flag_topic: false }, null, ctx.signal);
         if (post) patchCoreLike(post, true);
       } else {
-        await apiSend(`${BASE}/post_actions/${postId}?post_action_type_id=2`, 'DELETE');
+        await apiSend(`${BASE}/post_actions/${postId}?post_action_type_id=2`, 'DELETE', null, null, ctx.signal);
         if (post) patchCoreLike(post, false);
       }
+      if (ctx.scrollRoot && !ctx.scrollRoot.isConnected) return;
       if (post) {
         updatePostReactions(postNode, post);
         const opNode = ctx.nodeMap.get(1), op = ctx.postMap.get(1);
         if (opNode && op && opNode !== postNode) updatePostReactions(opNode, op);
-        syncFooterLike(ctx.fLikeBtn, ctx.fLikeCountEl, op, ctx);
+        syncFooterLike(ctx.fLikeBtn, ctx.fLikeCountEl, op);
       }
+      succeeded = true;
     } catch (err) { reportError('点赞失败', err); }
-    finally { likeBtn.disabled = false; }
+    finally { if (!succeeded) likeBtn.disabled = false; }
   }
 
   /* ============ 7. Boost 操作 ============ */
@@ -993,7 +1197,7 @@
       e.stopPropagation();
       const wrap = boostEmojiBtn.closest('.ldp-boost-input-wrap');
       const input = wrap && wrap.querySelector('.ldp-boost-input');
-      if (input) toggleEmojiPanel(boostEmojiBtn, input);
+      if (input) toggleEmojiPanel(boostEmojiBtn, input, ctx.signal);
       return true;
     }
 
@@ -1023,7 +1227,8 @@
       if (raw.length > 16) { alert('Boost内容不能超过16个字符'); return true; }
       boostSubmit.disabled = true;
       try {
-        const res = await apiSend(`${BASE}/discourse-boosts/posts/${postId}/boosts`, 'POST', { raw });
+        const res = await apiSend(`${BASE}/discourse-boosts/posts/${postId}/boosts`, 'POST', { raw }, null, ctx.signal);
+        if (!postNode.isConnected) return true;
         if (res && res.id) {
           const listEl = postNode.querySelector(':scope > .ldp-boosts-list');
           if (listEl) {
@@ -1050,7 +1255,8 @@
       const boostId = bubble && bubble.dataset.boostId;
       if (!boostId) return true;
       try {
-        await apiSend(`${BASE}/discourse-boosts/boosts/${boostId}`, 'DELETE');
+        await apiSend(`${BASE}/discourse-boosts/boosts/${boostId}`, 'DELETE', null, null, ctx.signal);
+        if (!postNode.isConnected) return true;
         bubble.remove();
         const btn = postNode.querySelector(':scope > .ldp-actions > .ldp-boost-btn');
         if (btn) btn.disabled = false;
@@ -1075,7 +1281,8 @@
         topic_id: ctx.topicId,
         reply_to_post_number: postNumber,
         nested_post: true,
-      });
+      }, null, ctx.signal);
+      if (ctx.scrollRoot && !ctx.scrollRoot.isConnected) return;
       const postData = data && data.post ? data.post : data;
       if (postData && postData.cooked) {
         const newPost = {
@@ -1186,7 +1393,7 @@
   }
 
   /* ============ 10. 收藏 ============ */
-  function bindBookmark(btn, topic) {
+  function bindBookmark(btn, topic, signal) {
     let bookmarked = !!topic.bookmarked, bookmarkId = topic.bookmark_id || null;
     const sync = () => { btn.classList.toggle('bookmarked', bookmarked); };
     sync();
@@ -1194,13 +1401,14 @@
       btn.disabled = true;
       try {
         if (!bookmarked) {
-          const data = await apiSend(`${BASE}/bookmarks`, 'POST', { bookmarkable_id: topic.id, bookmarkable_type: 'Topic' });
+          const data = await apiSend(`${BASE}/bookmarks`, 'POST', { bookmarkable_id: topic.id, bookmarkable_type: 'Topic' }, null, signal);
           bookmarkId = data && data.id ? data.id : bookmarkId; bookmarked = true;
         } else if (bookmarkId) {
-          await apiSend(`${BASE}/bookmarks/${bookmarkId}`, 'DELETE'); bookmarked = false; bookmarkId = null;
+          await apiSend(`${BASE}/bookmarks/${bookmarkId}`, 'DELETE', null, null, signal); bookmarked = false; bookmarkId = null;
         } else {
-          await apiSend(`${BASE}/t/${topic.id}/remove_bookmarks`, 'PUT'); bookmarked = false;
+          await apiSend(`${BASE}/t/${topic.id}/remove_bookmarks`, 'PUT', null, null, signal); bookmarked = false;
         }
+        if (!btn.isConnected) return;
         sync();
       } catch (err) { reportError('收藏失败', err); } finally { btn.disabled = false; }
     });
@@ -1241,16 +1449,17 @@
           const postNode = ctx && ctx.nodeMap.get(1);
           if (postNode) await toggleReaction(postNode, ctx, cur.id, btn);
           else {
-            const updated = await apiSend(`${BASE}/discourse-reactions/posts/${opPost.id}/custom-reactions/${encodeURIComponent(cur.id)}/toggle`, 'PUT');
+            const updated = await apiSend(`${BASE}/discourse-reactions/posts/${opPost.id}/custom-reactions/${encodeURIComponent(cur.id)}/toggle`, 'PUT', null, null, ctx && ctx.signal);
             Object.assign(opPost, updated);
           }
         } else if (!liked) {
-          await apiSend(`${BASE}/post_actions`, 'POST', { id: opPost.id, post_action_type_id: 2, flag_topic: false });
+          await apiSend(`${BASE}/post_actions`, 'POST', { id: opPost.id, post_action_type_id: 2, flag_topic: false }, null, ctx && ctx.signal);
           liked = true; patchCoreLike(opPost, true);
         } else {
-          await apiSend(`${BASE}/post_actions/${opPost.id}?post_action_type_id=2`, 'DELETE');
+          await apiSend(`${BASE}/post_actions/${opPost.id}?post_action_type_id=2`, 'DELETE', null, null, ctx && ctx.signal);
           liked = false; patchCoreLike(opPost, false);
         }
+        if (!btn.isConnected) return;
         if (ctx && ctx.nodeMap) {
           const opNode = ctx.nodeMap.get(1);
           if (opNode) updatePostReactions(opNode, opPost);
@@ -1264,44 +1473,6 @@
     if (ctx.countEl) ctx.countEl.textContent = ctx.totalComments ? `（${ctx.totalComments}）` : '';
     if (ctx.emptyEl) ctx.emptyEl.style.display = ctx.totalComments ? 'none' : '';
     if (ctx.footerReplyCountEl) ctx.footerReplyCountEl.textContent = ctx.totalComments || 0;
-  }
-
-  /* ============ 11. 定位目标楼层并高亮 ============ */
-  function waitForScrollEnd(el, timeoutMs = 1200) {
-    const IDLE_MS = 120;
-    return new Promise((resolve) => {
-      let done = false;
-      let idleTimer = null;
-      const finish = () => {
-        if (done) return;
-        done = true;
-        el.removeEventListener('scroll', onScroll);
-        clearTimeout(idleTimer);
-        clearTimeout(safety);
-        resolve();
-      };
-      const onScroll = () => {
-        clearTimeout(idleTimer);
-        idleTimer = setTimeout(finish, IDLE_MS);
-      };
-      el.addEventListener('scroll', onScroll, { passive: true });
-      idleTimer = setTimeout(finish, IDLE_MS);
-      const safety = setTimeout(finish, timeoutMs);
-    });
-  }
-
-
-
-  async function locatePost(targetPostNumber, ctx) {
-    if (!ctx.scrollRoot || !ctx.scrollRoot.isConnected) return;
-    const node = ctx.nodeMap.get(Number(targetPostNumber));
-    if (!node) return;
-    node.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    await waitForScrollEnd(ctx.scrollRoot);
-    if (!ctx.scrollRoot.isConnected) return;
-    node.classList.remove('ldp-flash');
-    void node.offsetWidth;
-    node.classList.add('ldp-flash');
   }
 
 
@@ -1359,18 +1530,10 @@
   }
 
   /**
-   * openModal(topicId, targetPostNumber)
-   *
-   * targetPostNumber 来源：
-   *   - null / undefined → 场景 A（首次打开，从头加载）
-   *   - 0                → 场景 B（已读过，跳到第一条未读）
-   *   - N > 0            → 场景 C（通知直达，跳到第 N 楼）
-   *
-   * 优化策略：两阶段并行加载
-   *   阶段 1：请求 topic.json → 立即渲染 1 楼 → 移除骨架屏
-   *   阶段 2：解析 stream → 计算窗口 → 加载评论（后台进行）
+   * 打开弹窗预览，固定从 1 楼开始。
+   * 首屏并行请求 session 与 topic.json，数据到齐后一次性渲染。
    */
-  async function openModal(topicId, targetPostNumber) {
+  async function openModal(topicId) {
     if (CURRENT_OVERLAY) {
       if (typeof CURRENT_OVERLAY.ldpClose === 'function') CURRENT_OVERLAY.ldpClose();
       else CURRENT_OVERLAY.remove();
@@ -1447,16 +1610,19 @@
       topicId, op: null, topicEl, commentsEl, countEl, emptyEl,
       scrollRoot: body, nodeMap: new Map(), postMap: new Map(),
       totalComments: 0, footerReplyCountEl: fReplyCountEl, validReactions: null,
-      fBoostBtn, fLikeBtn, fLikeCountEl,
+      fBoostBtn, fLikeBtn, fLikeCountEl, signal: abortController.signal,
     };
     const setValidReactions = (topicLike) => {
       const list = topicLike && Array.isArray(topicLike.valid_reactions) ? topicLike.valid_reactions : null;
       ctx.validReactions = list && list.length ? list.slice() : null;
     };
     const close = () => {
+      ctx.closed = true;
       abortController.abort();
       ctx.pagingIO?.disconnect();
       closeReactionPanel();
+      closeEmojiPanel();
+      if (activeLightboxClose) activeLightboxClose();
       overlay.remove();
       if (CURRENT_OVERLAY === overlay) CURRENT_OVERLAY = null;
       document.removeEventListener('keydown', onEsc);
@@ -1501,21 +1667,20 @@
       return op;
     };
     const setupPaging = (stream) => {
+      if (ctx.closed || !body.isConnected) return;
       if (!Array.isArray(stream) || stream.length < 2) { showBottomTip(); return; }
       let loading = false;
+      let upDone = false;
       const indices = () => [...ctx.postMap.keys()]
-          .filter((n) => n !== 1)
           .map((n) => stream.indexOf(n))
           .filter((i) => i >= 0);
       const loadMore = async (dir) => {
-        if (loading) return;
+        if (loading || (dir === 'up' && upDone)) return;
         const idxs = indices();
         if (!idxs.length) return;
         const minIdx = Math.min(...idxs), maxIdx = Math.max(...idxs);
-        if ((dir === 'up' && minIdx <= 0) || (dir === 'down' && maxIdx >= stream.length - 1)) {
-          showBottomTip();
-          return;
-        }
+        if (dir === 'up' && minIdx <= 0) { upDone = true; return; }
+        if (dir === 'down' && maxIdx >= stream.length - 1) { showBottomTip(); return; }
         const nextIdx = dir === 'up' ? minIdx - 1 : maxIdx + 1;
         const page = Math.floor(nextIdx / PAGE_SIZE) + 1;
         loading = true;
@@ -1524,16 +1689,22 @@
         const before = ctx.postMap.size;
         try {
           const data = await fetchJSON(`${BASE}/t/${topicId}.json?page=${page}`, abortController.signal);
+          if (!body.isConnected) return;
           appendPosts(data.post_stream?.posts || []);
-          if (ctx.postMap.size === before) showBottomTip();
+          if (ctx.postMap.size === before) {
+            if (dir === 'up') upDone = true;
+            else showBottomTip();
+          }
         } catch (e) {
           if (e.name !== 'AbortError') console.warn('[LinuxDo 增强阅读] 加载评论失败:', e);
         } finally { loading = false; tip.classList.remove('show'); }
       };
       const io = new IntersectionObserver((entries) => {
         if (loading) return;
-        if (entries.some((e) => e.isIntersecting && e.target === upSentinel)) loadMore('up');
-        else if (entries.some((e) => e.isIntersecting && e.target === downSentinel)) loadMore('down');
+        const upHit = !upDone && entries.some((e) => e.isIntersecting && e.target === upSentinel);
+        const downHit = entries.some((e) => e.isIntersecting && e.target === downSentinel);
+        if (upHit) loadMore('up');
+        else if (downHit) loadMore('down');
       }, { root: body, rootMargin: '240px' });
       io.observe(upSentinel);
       io.observe(downSentinel);
@@ -1541,26 +1712,12 @@
     };
 
     try {
-      await ensureMe();
-      let target = Number(targetPostNumber) || 0;
-      const baseUrl = `${BASE}/t/${topicId}.json`;
       const signal = abortController.signal;
-      let topic = null;
-      if (target === 0) {
-        topic = await fetchJSON(baseUrl, signal);
-        const last = Number(topic.topic?.last_read_post_number ?? topic.last_read_post_number) || 0;
-        target = last + 1;
-      }
-      if (!topic) {
-        const detailUrl = target > 1 ? `${baseUrl}?post_number=${target}` : baseUrl;
-        topic = await fetchJSON(detailUrl, signal);
-      }
-      const initialPosts = Array.isArray(topic.post_stream?.posts) ? topic.post_stream.posts : [];
-      if (target > 1 && !initialPosts.some((p) => p.post_number === 1)) {
-        const first = await fetchJSON(baseUrl, signal);
-        const op = (first.post_stream?.posts || []).find((p) => p.post_number === 1);
-        if (op) topic.post_stream.posts = [op, ...initialPosts];
-      }
+      const [_, topic] = await Promise.all([
+        ensureMe(),
+        fetchJSON(`${BASE}/t/${topicId}.json`, signal),
+      ]);
+      if (!body.isConnected) return;
       setValidReactions(topic);
       const posts = Array.isArray(topic.post_stream?.posts) ? topic.post_stream.posts : [];
       const opPost = posts.find((p) => p.post_number === 1) || null;
@@ -1571,7 +1728,7 @@
       const returnedOp = appendPosts(posts);
       const finalOp = returnedOp || opPost;
       fOpenLink.href = `${BASE}/t/${topicId}`;
-      bindBookmark(fBookmarkBtn, topic);
+      bindBookmark(fBookmarkBtn, topic, ctx.signal);
       bindFooterLike(fLikeBtn, fLikeCountEl, finalOp, ctx);
       const canBoostOp = !!(finalOp && finalOp.can_boost);
       if (!canBoostOp) fBoostBtn.disabled = true;
@@ -1595,7 +1752,6 @@
       footerEl.hidden = false;
       maskEl.classList.add('hide');
       setTimeout(() => maskEl.remove(), 300);
-      if (target > 1) await locatePost(target, ctx);
       setupPaging(topic.post_stream?.stream || []);
     } catch (err) {
       if (err.name === 'AbortError') return;
@@ -1607,7 +1763,7 @@
   /* ============ 13. 拦截标题/通知点击 ============ */
   document.addEventListener('click', function (e) {
     const a = e.target.closest('a.title, a.raw-topic-link, a.search-link, a.search-result-topic, a[href*="/t/"]');
-    if (!a || a.classList.contains('ldp-link-open') || a.classList.contains('ldp-f-open')) return;
+    if (!a || a.classList.contains('ldp-f-open')) return;
 
     const href = a.getAttribute('href') || '';
     const parsed = parseTopicHref(href);
@@ -1623,18 +1779,7 @@
     e.preventDefault();
     e.stopPropagation();
 
-    const { topicId, targetPostNumber } = parsed;
-
-    if (inMenu && targetPostNumber) {
-      // 通知面板点击：有具体楼层号 → 场景 C（直接跳指定楼层）
-      openModal(topicId, targetPostNumber);
-    } else if (isTitle || inSearch) {
-      // 列表页/搜索结果点击标题 → 场景 A/B 自动判断
-      // 传 0 触发"已读跳未读"逻辑，openModal 内部会检查 last_read_post_number
-      openModal(topicId, 0);
-    } else {
-      // 其他情况（菜单里的帖子链接，无具体楼层）→ 场景 A/B
-      openModal(topicId, 0);
-    }
+    const { topicId } = parsed;
+    openModal(topicId);
   }, true);
 })();
